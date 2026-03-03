@@ -19,15 +19,15 @@
             overflow: hidden;
         }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        .custom-scrollbar::-webkit-scrollbar { width: 10px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; border-radius: 30px; }
         
         @keyframes rowEntry {
-            from { opacity: 0; transform: translateX(-200px) skewX(-15deg); }
+            from { opacity: 0; transform: translateX(-100px) skewX(-10deg); }
             to { opacity: 1; transform: translateX(0) skewX(0deg); }
         }
         .animate-row { 
-            animation: rowEntry 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards; 
+            animation: rowEntry 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; 
         }
 
         /* Carbon fiber texture overlay */
@@ -75,51 +75,16 @@
             )
         };
 
-        // --- Configuration ---
-        const DEFAULT_SHEET_ID = '1roukKQBehdOOweJDWor5x1GlYZPIlR6WmqALTVbNG1g';
-        const appId = "F1-Broadcaster-v8.5";
-
-        // --- SVG Logos (High Fidelity Reconstructions) ---
-        const TeamLogos = {
-            ferrari: (color) => (
-                <svg viewBox="0 0 100 120" className="w-20 h-24 drop-shadow-[0_0_15px_rgba(255,235,0,0.5)]">
-                    <path d="M50 118 C 15 105 2 80 2 45 L2 18 L50 5 L98 18 L98 45 C 98 80 85 105 50 118" fill="#FFEB00" stroke="#000" strokeWidth="0.5"/>
-                    <path d="M10 20 L50 12 L90 20 L90 28 L50 20 L10 28 Z" fill="white" />
-                    <path d="M10 20 L50 12 L30 16 L10 28 Z" fill="#008C45" />
-                    <path d="M90 20 L50 12 L70 16 L90 28 Z" fill="#CD212A" />
-                    <path d="M52 40 C 48 35 40 40 40 48 C 40 55 48 60 43 75 C 38 85 32 88 32 105 H68 C 68 95 65 88 60 75 C 57 65 60 55 57 48 C 57 43 55 40 52 40" fill="black" />
-                    <text x="50" y="112" textAnchor="middle" style={{fontFamily: 'serif', fontWeight: 900, fontSize: '12px'}} fill="black">S F</text>
-                </svg>
-            ),
-            mercedes: (color) => (
-                <svg viewBox="0 0 100 100" className="w-20 h-20 drop-shadow-[0_0_20px_rgba(39,244,210,0.6)]">
-                    <circle cx="50" cy="50" r="48" stroke={color} strokeWidth="4" fill="none" />
-                    <path d="M50 50 L50 6 L58 45 L94 42 L55 55 L75 92 L50 62 L25 92 L45 55 L6 42 L42 45 Z" fill={color} />
-                </svg>
-            ),
-            mclaren: (color) => (
-                <svg viewBox="0 0 120 40" className="w-32 h-14 drop-shadow-[0_0_15px_rgba(255,128,0,0.6)]">
-                    <path d="M95 5 C 110 5 120 15 120 30 C 105 20 85 20 70 30 C 80 15 95 5 95 5" fill={color} />
-                    <path d="M5 30 L12 5 L18 22 L24 5 L31 30 M38 30 L35 25 L38 10 L45 10 M50 30 L65 30" stroke={color} strokeWidth="3" fill="none" opacity="0.4" />
-                </svg>
-            ),
-            redbull: () => (
-                <svg viewBox="0 0 140 100" className="w-36 h-28 drop-shadow-[0_0_25px_rgba(255,204,0,0.5)]">
-                    <circle cx="70" cy="45" r="30" fill="#FFCC00" />
-                    <path d="M15 70 Q 45 35 70 60 L 70 75 Q 45 50 15 80 Z" fill="#E80020" />
-                    <path d="M125 70 Q 95 35 70 60 L 70 75 Q 95 50 125 80 Z" fill="#E80020" />
-                    <path d="M60 70 L80 70 L70 95 Z" fill="#E80020" />
-                </svg>
-            )
-        };
-
         const TEAM_THEMES = {
-            ferrari: { name: 'Ferrari', color: '#E80020', logo: TeamLogos.ferrari },
-            mercedes: { name: 'Mercedes', color: '#27F4D2', logo: TeamLogos.mercedes },
-            mclaren: { name: 'McLaren', color: '#FF8000', logo: TeamLogos.mclaren },
-            redbull: { name: 'Red Bull', color: '#3671C6', logo: TeamLogos.redbull },
-            default: { name: 'Independent', color: '#52525b', logo: (c) => <div className="w-16 h-16 bg-zinc-700 rounded-full flex items-center justify-center font-black italic">F1</div> }
+            ferrari: { name: 'Ferrari', color: '#E80020' },
+            mercedes: { name: 'Mercedes', color: '#27F4D2' },
+            mclaren: { name: 'McLaren', color: '#FF8000' },
+            redbull: { name: 'Red Bull', color: '#3671C6' },
+            default: { name: 'Independent', color: '#52525b' }
         };
+
+        const DEFAULT_SHEET_ID = '1roukKQBehdOOweJDWor5x1GlYZPIlR6WmqALTVbNG1g';
+        const appId = "F1-Broadcaster-v8.9";
 
         function App() {
             const [appSettings, setAppSettings] = useState({
@@ -133,6 +98,10 @@
             const [mode, setMode] = useState('tv');
             const [syncStatus, setSyncStatus] = useState('idle');
             const [errorMessage, setErrorMessage] = useState('');
+            
+            const scrollRef = useRef(null);
+            const scrollInterval = useRef(null);
+            const isManuallyScrolling = useRef(false);
 
             const fetchSheetData = async () => {
                 setSyncStatus('syncing');
@@ -149,22 +118,25 @@
                     const response = await fetch(url);
                     
                     if (!response.ok) {
-                        throw new Error(`HTTP Error ${response.status}: Ensure the sheet is "Published to the web" (File > Share > Publish to web)`);
+                        throw new Error(`HTTP Error ${response.status}: Check "Publish to web" settings.`);
                     }
                     
                     const csvText = await response.text();
-                    if (csvText.includes('<!DOCTYPE html>')) {
-                        throw new Error("Received HTML instead of CSV. Ensure the sheet is Published to web as CSV.");
-                    }
-
                     const rows = csvText.split(/\r?\n/).filter(r => r.trim() !== '');
                     
                     const parsed = rows.slice(1).map((row, idx) => {
                         const cols = row.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || [];
                         const cleanCols = cols.map(c => c.replace(/^"|"$/g, '').trim());
-                        const teamKey = cleanCols[1]?.toLowerCase().replace(/\s/g, '') || 'default';
                         
-                        // Sum Columns C, D, E, F (indexes 2, 3, 4, 5)
+                        // Enhanced team mapping including "read bull" typo support
+                        const rawTeam = cleanCols[1]?.toLowerCase() || '';
+                        let teamKey = 'default';
+                        if (rawTeam.includes('red bull') || rawTeam.includes('redbull') || rawTeam.includes('oracle') || rawTeam.includes('read bull')) teamKey = 'redbull';
+                        else if (rawTeam.includes('ferrari')) teamKey = 'ferrari';
+                        else if (rawTeam.includes('mercedes')) teamKey = 'mercedes';
+                        else if (rawTeam.includes('mclaren')) teamKey = 'mclaren';
+                        
+                        // Sum Columns C, D, E, F
                         const racePoints = cleanCols.slice(2, 6).map(p => {
                             const val = parseInt(p);
                             return isNaN(val) ? 0 : val;
@@ -179,7 +151,7 @@
                         };
                     });
 
-                    if (parsed.length === 0) throw new Error("No driver data found in the spreadsheet.");
+                    if (parsed.length === 0) throw new Error("No data found.");
                     
                     setDrivers(parsed);
                     setSyncStatus('idle');
@@ -209,6 +181,39 @@
                 }
             }, [mode, appSettings.isAutoRotating, appSettings.rotationSpeed]);
 
+            useEffect(() => {
+                const container = scrollRef.current;
+                if (!container || mode !== 'tv') return;
+
+                container.scrollTop = 0;
+
+                const performScroll = () => {
+                    if (isManuallyScrolling.current) return;
+                    
+                    if (container.scrollTop + container.clientHeight >= container.scrollHeight - 5) {
+                        clearInterval(scrollInterval.current);
+                        setTimeout(() => {
+                            container.scrollTo({ top: 0, behavior: 'smooth' });
+                            setTimeout(startScroller, 4000);
+                        }, 5000);
+                    } else {
+                        container.scrollTop += 1;
+                    }
+                };
+
+                const startScroller = () => {
+                    clearInterval(scrollInterval.current);
+                    scrollInterval.current = setInterval(performScroll, 35);
+                };
+
+                const startupDelay = setTimeout(startScroller, 6000);
+
+                return () => {
+                    clearInterval(scrollInterval.current);
+                    clearTimeout(startupDelay);
+                };
+            }, [appSettings.activeView, mode]);
+
             const sortedDrivers = useMemo(() => [...drivers].sort((a,b) => b.points - a.points), [drivers]);
             const teamStandings = useMemo(() => {
                 const ts = Object.keys(TEAM_THEMES).filter(k => k !== 'default').map(key => ({
@@ -220,174 +225,151 @@
             }, [drivers]);
 
             return (
-                <div className="min-h-screen flex flex-col relative">
+                <div className="min-h-screen flex flex-col relative h-screen max-h-screen overflow-hidden bg-[#020202]">
                     <div className="carbon-overlay"></div>
 
-                    <header className="relative z-50 bg-zinc-900/95 backdrop-blur-3xl border-b-4 border-red-600 px-12 py-5 flex justify-between items-center shadow-2xl">
-                        <div className="flex items-center gap-10">
-                            <div className="bg-red-600 px-8 py-2 italic font-black text-5xl rounded-sm skew-x-[-15deg] shadow-[0_0_50px_rgba(232,0,32,0.4)] transition-transform hover:scale-105 cursor-pointer">F1</div>
-                            <div className="flex bg-black/60 rounded-2xl p-1.5 border border-white/10">
+                    <header className="relative z-50 bg-zinc-900/95 backdrop-blur-3xl border-b-2 border-red-600 px-6 py-2 flex justify-between items-center shadow-2xl">
+                        <div className="flex items-center gap-6">
+                            <div className="bg-red-600 px-4 py-0.5 italic font-black text-2xl rounded-sm skew-x-[-15deg] shadow-[0_0_20px_rgba(232,0,32,0.4)] transition-transform hover:scale-105 cursor-pointer">F1</div>
+                            <div className="flex bg-black/60 rounded-xl p-0.5 border border-white/10">
                                 <button 
                                     onClick={() => setAppSettings(p => ({ ...p, activeView: 'drivers', isAutoRotating: false }))}
-                                    className={`flex items-center gap-3 px-8 py-3 rounded-xl font-black text-sm uppercase tracking-widest transition-all ${appSettings.activeView === 'drivers' ? 'bg-zinc-100 text-black shadow-xl scale-105' : 'text-zinc-500 hover:text-zinc-200'}`}
+                                    className={`flex items-center gap-2 px-4 py-1.5 rounded-lg font-black text-[9px] uppercase tracking-widest transition-all ${appSettings.activeView === 'drivers' ? 'bg-zinc-100 text-black shadow-xl' : 'text-zinc-500'}`}
                                 >
-                                    <Icons.Users size={18} /> Drivers
+                                    Drivers
                                 </button>
                                 <button 
                                     onClick={() => setAppSettings(p => ({ ...p, activeView: 'teams', isAutoRotating: false }))}
-                                    className={`flex items-center gap-3 px-8 py-3 rounded-xl font-black text-sm uppercase tracking-widest transition-all ${appSettings.activeView === 'teams' ? 'bg-zinc-100 text-black shadow-xl scale-105' : 'text-zinc-500 hover:text-zinc-200'}`}
+                                    className={`flex items-center gap-2 px-4 py-1.5 rounded-lg font-black text-[9px] uppercase tracking-widest transition-all ${appSettings.activeView === 'teams' ? 'bg-zinc-100 text-black shadow-xl' : 'text-zinc-500'}`}
                                 >
-                                    <Icons.Shield size={18} /> Constructors
+                                    Constructors
                                 </button>
                             </div>
                         </div>
 
-                        <div className="flex gap-6 items-center">
+                        <div className="flex gap-4 items-center">
                             {appSettings.isAutoRotating && (
-                                <div className="flex items-center gap-3 bg-red-950/20 px-4 py-2 rounded-lg border border-red-900/40 animate-pulse">
-                                    <div className="w-2 h-2 bg-red-600 rounded-full"></div>
-                                    <span className="text-[11px] font-black uppercase text-red-500 tracking-[0.2em]">Live Rotation</span>
+                                <div className="flex items-center gap-2 bg-red-950/20 px-3 py-1 rounded-lg border border-red-900/40">
+                                    <div className="w-1 h-1 bg-red-600 rounded-full animate-pulse"></div>
+                                    <span className="text-[8px] font-black uppercase text-red-500 tracking-[0.2em]">Live Rotation</span>
                                 </div>
                             )}
                             <button 
                                 onClick={() => setMode(mode === 'tv' ? 'admin' : 'tv')}
-                                className={`flex items-center gap-3 px-8 py-3 rounded-full font-black uppercase tracking-widest text-xs transition-all ${mode === 'admin' ? 'bg-red-600' : 'bg-white/5 hover:bg-white/10 hover:scale-105'}`}
+                                className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-black uppercase tracking-widest text-[8px] transition-all ${mode === 'admin' ? 'bg-red-600' : 'bg-white/5 hover:bg-white/10'}`}
                             >
-                                {mode === 'tv' ? <Icons.Settings size={18} /> : <Icons.Tv size={18} />}
+                                {mode === 'tv' ? <Icons.Settings size={12} /> : <Icons.Tv size={12} />}
                                 {mode === 'tv' ? 'Settings' : 'Broadcast'}
                             </button>
                         </div>
                     </header>
 
-                    <main className="flex-1 relative z-10">
-                        <div className={`h-full w-full p-12 transition-all duration-1000 ${mode === 'admin' ? 'opacity-5 blur-[60px] scale-90 pointer-events-none' : 'opacity-100'}`}>
-                            <div className="max-w-[1900px] mx-auto flex flex-col h-full">
-                                <div className="flex justify-between items-end mb-12 border-b-8 border-white/5 pb-10">
+                    <main className="flex-1 relative overflow-hidden z-10 flex flex-col h-full">
+                        <div className={`flex-1 transition-all duration-1000 p-4 md:p-6 flex flex-col h-full overflow-hidden ${mode === 'admin' ? 'opacity-5 blur-[60px] scale-90 pointer-events-none' : 'opacity-100'}`}>
+                            <div className="max-w-[2400px] mx-auto w-full flex flex-col h-full">
+                                <div className="flex justify-between items-end mb-4 border-b-2 border-white/5 pb-2">
                                     <div className="animate-in slide-in-from-left duration-700">
-                                        <span className="text-red-600 font-black italic uppercase tracking-[0.6em] text-3xl">Classification</span>
-                                        <h2 className="text-[10rem] font-black italic uppercase tracking-tighter leading-none -ml-3 drop-shadow-2xl">
-                                            {appSettings.activeView === 'drivers' ? 'Driver' : 'Team'}
+                                        <span className="text-red-600 font-black italic uppercase tracking-[0.6em] text-sm">Season Standings</span>
+                                        <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter leading-none -ml-0.5 drop-shadow-2xl">
+                                            {appSettings.activeView === 'drivers' ? 'Driver' : 'Constructor'}
                                         </h2>
                                     </div>
-                                    <div className="text-right pb-4 animate-in slide-in-from-right duration-700">
-                                        <p className="text-zinc-500 font-black uppercase tracking-[0.8em] text-lg mb-6 italic tracking-widest">Grand Prix Broadcaster</p>
-                                        <p className="text-7xl font-black italic text-zinc-100 tabular-nums">
+                                    <div className="text-right pb-1 animate-in slide-in-from-right duration-700">
+                                        <p className="text-zinc-500 font-black uppercase tracking-[0.8em] text-[8px] mb-1 italic tracking-widest opacity-50">Melbourne 2026 Feed</p>
+                                        <p className="text-3xl font-black italic text-zinc-100 tabular-nums">
                                             {appSettings.lastSync ? new Date(appSettings.lastSync).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--:--'}
                                         </p>
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 gap-8 overflow-y-auto no-scrollbar pr-4 pb-32">
-                                    {drivers.length > 0 ? (
-                                        appSettings.activeView === 'drivers' ? 
-                                            sortedDrivers.map((d, i) => <StandingsRow key={d.id} rank={i+1} name={d.name} sub={TEAM_THEMES[d.teamId]?.name} points={d.points} color={TEAM_THEMES[d.teamId]?.color} logo={TEAM_THEMES[d.teamId]?.logo} delay={i * 0.1} />)
-                                            : 
-                                            teamStandings.map((t, i) => <StandingsRow key={t.id} rank={i+1} name={t.name} sub="Formula 1 World Championship" points={t.points} color={t.color} logo={t.logo} delay={i * 0.1} />)
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center h-96 border-4 border-dashed border-zinc-900 rounded-3xl opacity-40">
-                                            <Icons.FileSpreadsheet size={80} className="mb-6" />
-                                            <p className="text-3xl font-black italic uppercase tracking-widest">Connect Spreadsheet in Settings</p>
-                                        </div>
-                                    )}
+                                <div 
+                                    ref={scrollRef}
+                                    onMouseEnter={() => isManuallyScrolling.current = true}
+                                    onMouseLeave={() => isManuallyScrolling.current = false}
+                                    onWheel={() => isManuallyScrolling.current = true}
+                                    className="flex-1 overflow-y-auto custom-scrollbar no-scrollbar pr-2 pb-10 scroll-smooth"
+                                >
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {drivers.length > 0 ? (
+                                            appSettings.activeView === 'drivers' ? 
+                                                sortedDrivers.map((d, i) => <StandingsRow key={d.id} rank={i+1} name={d.name} sub={TEAM_THEMES[d.teamId]?.name} points={d.points} color={TEAM_THEMES[d.teamId]?.color} delay={i * 0.05} />)
+                                                : 
+                                                teamStandings.map((t, i) => <StandingsRow key={t.id} rank={i+1} name={t.name} sub="Formula 1 World Championship" points={t.points} color={t.color} delay={i * 0.05} isTeamView={true} />)
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center h-96 border-2 border-dashed border-zinc-900 rounded-3xl opacity-30">
+                                                <Icons.FileSpreadsheet size={48} className="mb-4" />
+                                                <p className="text-xl font-black italic uppercase tracking-widest text-center">Sync spreadsheet to load</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
                         {mode === 'admin' && (
-                            <div className="absolute inset-0 z-50 flex items-center justify-center p-16 bg-black/60 backdrop-blur-md animate-in zoom-in-95 duration-300">
-                                <div className="bg-zinc-900 w-full max-w-4xl rounded-[4rem] border border-white/20 shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden p-16 space-y-12">
-                                    <h2 className="text-5xl font-black italic uppercase text-red-500 flex items-center gap-6 text-zinc-100">Race Control</h2>
-                                    
-                                    <div className="space-y-4">
-                                        <label className="text-xs font-black uppercase text-zinc-500 tracking-widest">Google Sheet Master Link</label>
+                            <div className="absolute inset-0 z-50 flex items-center justify-center p-8 bg-black/60 backdrop-blur-md animate-in zoom-in-95 duration-300">
+                                <div className="bg-zinc-900 w-full max-w-2xl rounded-[2rem] border border-white/20 shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden p-10 space-y-6">
+                                    <h2 className="text-3xl font-black italic uppercase text-red-500">Race Control</h2>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Spreadsheet Master Link</label>
                                         <div className="flex gap-4">
                                             <input 
                                                 value={appSettings.sheetId} 
                                                 onChange={e => setAppSettings({...appSettings, sheetId: e.target.value})}
-                                                className="flex-1 bg-black border-2 border-white/10 rounded-2xl px-6 py-4 text-xl font-bold focus:border-red-600 outline-none transition-all text-white"
-                                                placeholder="Paste Sheet URL or ID"
+                                                className="flex-1 bg-black border-2 border-white/10 rounded-xl px-4 py-2 text-md font-bold focus:border-red-600 outline-none transition-all text-white"
+                                                placeholder="Paste Link"
                                             />
-                                            <button onClick={fetchSheetData} className="bg-white text-black px-10 rounded-2xl font-black uppercase hover:bg-zinc-200 transition-colors flex items-center gap-2">
-                                                <Icons.RefreshCcw size={18} className={syncStatus === 'syncing' ? 'animate-spin' : ''} /> Sync
-                                            </button>
+                                            <button onClick={fetchSheetData} className="bg-white text-black px-6 rounded-xl font-black uppercase hover:bg-zinc-200 transition-colors">Sync</button>
                                         </div>
-                                        
-                                        {errorMessage && (
-                                            <div className="bg-red-950/40 border border-red-900/60 p-6 rounded-2xl space-y-3">
-                                                <p className="text-red-500 font-bold uppercase text-sm flex items-center gap-2">
-                                                    <Icons.AlertCircle size={18} /> {errorMessage}
-                                                </p>
-                                                <div className="text-xs text-zinc-400 space-y-1 leading-relaxed">
-                                                    <p className="font-black text-zinc-200 uppercase tracking-widest underline">Troubleshooting:</p>
-                                                    <p>1. Open your Sheet, go to <span className="text-zinc-100 font-bold italic">File > Share > Publish to the web</span>.</p>
-                                                    <p>2. Select <span className="text-zinc-100 font-bold">"Entire Document"</span> and <span className="text-zinc-100 font-bold">"Comma-separated values (.csv)"</span>.</p>
-                                                    <p>3. Click <span className="text-zinc-100 font-bold italic">Publish</span> and copy the ID from the URL.</p>
-                                                </div>
-                                            </div>
-                                        )}
+                                        {errorMessage && <p className="text-red-500 font-bold uppercase text-[9px] flex items-center gap-2"><Icons.AlertCircle size={10} /> {errorMessage}</p>}
                                     </div>
-
-                                    <div className="grid grid-cols-2 gap-8">
-                                        <div className="flex justify-between items-center bg-black/40 p-10 rounded-3xl border border-white/5">
-                                            <div>
-                                                <h3 className="font-black uppercase text-xl italic text-zinc-200">Auto Rotation</h3>
-                                                <p className="text-xs text-zinc-500 uppercase tracking-widest mt-1">Switch views every {appSettings.rotationSpeed}s</p>
-                                            </div>
-                                            <input type="checkbox" checked={appSettings.isAutoRotating} onChange={e => setAppSettings({...appSettings, isAutoRotating: e.target.checked})} className="w-12 h-12 accent-red-600 cursor-pointer shadow-lg" />
+                                    <div className="flex justify-between items-center bg-black/40 p-6 rounded-xl border border-white/5">
+                                        <div>
+                                            <h3 className="font-black uppercase text-md">Auto Cycle</h3>
+                                            <p className="text-[9px] text-zinc-500 uppercase tracking-widest">Flip views every {appSettings.rotationSpeed}s</p>
                                         </div>
-                                        <div className="flex justify-between items-center bg-black/40 p-10 rounded-3xl border border-white/5">
-                                            <div className="w-full">
-                                                <h3 className="font-black uppercase text-xl italic text-zinc-200">Rotation Delay</h3>
-                                                <input type="range" min="5" max="60" step="5" value={appSettings.rotationSpeed} onChange={e => setAppSettings({...appSettings, rotationSpeed: parseInt(e.target.value)})} className="w-full mt-4 accent-red-600" />
-                                            </div>
-                                        </div>
+                                        <input type="checkbox" checked={appSettings.isAutoRotating} onChange={e => setAppSettings({...appSettings, isAutoRotating: e.target.checked})} className="w-8 h-8 accent-red-600 cursor-pointer" />
                                     </div>
-
-                                    <div className="flex gap-4">
-                                        <button onClick={() => setMode('tv')} className="flex-1 bg-red-600 py-6 rounded-3xl font-black text-2xl uppercase italic hover:bg-red-500 transition-colors shadow-2xl">Return to Broadcast</button>
-                                        <a href={appSettings.sheetId ? (appSettings.sheetId.includes('http') ? appSettings.sheetId : `https://docs.google.com/spreadsheets/d/${appSettings.sheetId}`) : '#'} target="_blank" className="bg-zinc-800 px-8 rounded-3xl flex items-center justify-center hover:bg-zinc-700 transition-all">
-                                            <Icons.ExternalLink size={24} />
-                                        </a>
-                                    </div>
+                                    <button onClick={() => setMode('tv')} className="w-full bg-red-600 py-4 rounded-xl font-black text-lg uppercase italic hover:bg-red-500 transition-colors shadow-xl">Back to Feed</button>
                                 </div>
                             </div>
                         )}
                     </main>
 
-                    <footer className="p-8 bg-black border-t-4 border-white/5 flex justify-between px-20 items-center">
-                        <div className="flex items-center gap-6">
-                            <span className="text-[13px] font-black text-zinc-700 uppercase tracking-[0.8em]">Broadcaster OS v8.5 — Melbourne GP Special Edition — Build {appId}</span>
+                    <footer className="p-2 bg-black border-t border-white/5 flex justify-between px-10 items-center opacity-30">
+                        <div className="flex items-center gap-4">
+                            <span className="text-[8px] font-black text-zinc-600 uppercase tracking-[0.8em]">Broadcaster Engine v8.9 — Minimal Broadcast Mode — {appId}</span>
                         </div>
                     </footer>
                 </div>
             );
         }
 
-        function StandingsRow({ rank, name, sub, points, color, logo, delay }) {
+        function StandingsRow({ rank, name, sub, points, color, delay, isTeamView }) {
+            // Robust first name logic for drivers, full name for constructors
+            const displayName = isTeamView ? name : name.split(' ')[0];
+
             return (
                 <div 
-                    className="group relative flex items-center bg-zinc-900/50 border border-white/5 py-14 px-20 animate-row opacity-0 overflow-hidden transition-all duration-1000 hover:bg-zinc-800/70 shadow-[0_15px_40px_rgba(0,0,0,0.6)]"
-                    style={{ animationDelay: `${delay}s`, borderLeft: `32px solid ${color}` }}
+                    className="group relative flex items-center bg-zinc-900/50 border border-white/5 py-2 px-8 animate-row opacity-0 overflow-hidden transition-all duration-1000 hover:bg-zinc-800/70 shadow-[0_5px_15px_rgba(0,0,0,0.3)]"
+                    style={{ animationDelay: `${delay}s`, borderLeft: `10px solid ${color}` }}
                 >
-                    <div className="text-[10rem] md:text-[13rem] font-black italic text-zinc-800 mr-28 w-48 text-center tabular-nums leading-none drop-shadow-2xl transition-all group-hover:text-zinc-600">
+                    <div className="text-3xl md:text-4xl font-black italic text-zinc-800 mr-8 w-16 text-center tabular-nums leading-none transition-all group-hover:text-zinc-600">
                         {rank}
                     </div>
-                    <div className="mr-28 transition-all duration-1000 group-hover:scale-150 group-hover:rotate-6">
-                        {logo ? logo(color) : null}
-                    </div>
                     <div className="flex-1">
-                        <h3 className="text-8xl md:text-[11rem] font-black italic uppercase leading-none tracking-tighter transition-all group-hover:translate-x-12 duration-700">
-                            {name}
+                        <h3 className="text-2xl md:text-4xl font-black italic uppercase leading-none tracking-tighter transition-all group-hover:translate-x-2 duration-700">
+                            {displayName}
                         </h3>
-                        <p className="text-zinc-500 font-black tracking-[1em] uppercase text-4xl mt-10 opacity-30 italic transition-all group-hover:opacity-100">
+                        <p className="text-zinc-500 font-black tracking-[0.8em] uppercase text-[9px] mt-1 opacity-40 italic transition-all group-hover:opacity-100">
                             {sub}
                         </p>
                     </div>
                     <div className="text-right flex flex-col items-end">
-                        <div className="text-[14rem] md:text-[18rem] font-black italic tabular-nums leading-none tracking-tighter group-hover:text-white transition-all duration-1000 group-hover:scale-110 drop-shadow-[0_10px_30px_rgba(255,255,255,0.1)]">
+                        <div className="text-3xl md:text-5xl font-black italic tabular-nums leading-none tracking-tighter group-hover:text-white transition-all duration-1000">
                             {points}
                         </div>
-                        <div className="text-2xl font-black text-zinc-800 uppercase tracking-[1.2em] mt-10 pr-10 opacity-60">SEASON TOTAL</div>
+                        <div className="text-[7px] font-black text-zinc-800 uppercase tracking-[1em] mt-1 pr-2 opacity-60">SEASON TOTAL</div>
                     </div>
                 </div>
             );
@@ -395,9 +377,9 @@
 
         function LoadingScreen() {
             return (
-                <div className="min-h-screen bg-black flex flex-col items-center justify-center p-20">
-                    <div className="w-64 h-64 border-[24px] border-red-600 border-t-transparent rounded-full animate-spin mb-24 shadow-[0_0_150px_rgba(232,0,32,0.4)]"></div>
-                    <h2 className="text-9xl font-black italic uppercase tracking-tighter text-white animate-pulse">Race Control Online</h2>
+                <div className="min-h-screen bg-black flex flex-col items-center justify-center p-10">
+                    <div className="w-32 h-32 border-[12px] border-red-600 border-t-transparent rounded-full animate-spin mb-12 shadow-[0_0_80px_rgba(232,0,32,0.4)]"></div>
+                    <h2 className="text-4xl font-black italic uppercase tracking-tighter text-white animate-pulse">Race Control Linking...</h2>
                 </div>
             );
         }
