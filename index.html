@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>F1 Blowout Broadcaster</title>
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -12,37 +12,51 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        
+        * { -webkit-tap-highlight-color: transparent; }
+
         body { 
             font-family: 'Inter', sans-serif; 
             background: #010101; 
             color: white;
             overflow: hidden;
+            touch-action: pan-y; /* Allow vertical scroll, handle horizontal via JS */
         }
+        
         .no-scrollbar::-webkit-scrollbar { display: none; }
+        .custom-scrollbar { -webkit-overflow-scrolling: touch; }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; border-radius: 30px; }
         
         @keyframes rowEntry {
-            from { opacity: 0; transform: translateX(-60px) skewX(-5deg); }
-            to { opacity: 1; transform: translateX(0) skewX(0deg); }
+            from { opacity: 0; transform: translate3d(-40px, 0, 0) skewX(-5deg); }
+            to { opacity: 1; transform: translate3d(0, 0, 0) skewX(0deg); }
         }
+        
         .animate-row { 
             animation: rowEntry 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; 
+            will-change: transform, opacity;
         }
 
         .carbon-overlay {
             position: fixed;
             inset: 0;
             pointer-events: none;
-            opacity: 0.1;
+            opacity: 0.05;
             z-index: 0;
             background-image: url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
         }
 
         .important-glow {
-            text-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
             border: 1px solid rgba(255, 215, 0, 0.2) !important;
-            background: linear-gradient(to right, rgba(255, 215, 0, 0.05), transparent) !important;
+            background: linear-gradient(to right, rgba(255, 215, 0, 0.08), transparent) !important;
+        }
+
+        /* Mobile specific font scaling */
+        @media (max-width: 768px) {
+            .mobile-title-fix { font-size: 1.5rem !important; line-height: 1.1 !important; }
+            .mobile-points-fix { font-size: 2.2rem !important; }
+            .important-glow { text-shadow: none !important; }
         }
     </style>
 </head>
@@ -75,6 +89,7 @@
             default: { name: 'Independent', color: '#52525b' }
         };
 
+        const TABS = ['drivers', 'teams', 'timetable', 'roles'];
         const DEFAULT_LEADERBOARD_ID = '1roukKQBehdOOweJDWor5x1GlYZPIlR6WmqALTVbNG1g';
         const DEFAULT_TIMETABLE_PUB_ID = '2PACX-1vSg_R5DdIr5GaBfcLRPJumD7r4LPmsfvfvszJSHbJ7UodYOBS7Hnv7YZtuqSgSEyozvSL63NrlzGFFY';
 
@@ -96,6 +111,7 @@
             const scrollRef = useRef(null);
             const scrollInterval = useRef(null);
             const isManuallyScrolling = useRef(false);
+            const touchStartPos = useRef(null);
 
             const fetchSheetData = async () => {
                 setSyncStatus('syncing');
@@ -169,19 +185,22 @@
                 return () => clearInterval(i);
             }, [appSettings.sheetId, appSettings.timetableUrl]);
 
+            // Auto-Rotation logic (excludes 'roles' tab as per instruction)
             useEffect(() => {
                 if (mode === 'tv' && appSettings.isAutoRotating) {
                     const i = setInterval(() => {
                         setAppSettings(prev => {
-                            const views = ['drivers', 'teams', 'timetable'];
-                            const nextIndex = (views.indexOf(prev.activeView) + 1) % views.length;
-                            return { ...prev, activeView: views[nextIndex] };
+                            const rotateTabs = ['drivers', 'teams', 'timetable'];
+                            const currentIndex = rotateTabs.indexOf(prev.activeView);
+                            const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % rotateTabs.length;
+                            return { ...prev, activeView: rotateTabs[nextIndex] };
                         });
                     }, appSettings.rotationSpeed * 1000);
                     return () => clearInterval(i);
                 }
             }, [mode, appSettings.isAutoRotating, appSettings.rotationSpeed, appSettings.activeView]);
 
+            // Auto-Scrolling logic for long lists
             useEffect(() => {
                 const container = scrollRef.current;
                 if (!container || mode !== 'tv') return;
@@ -205,6 +224,35 @@
                 const startupDelay = setTimeout(startScroller, 6000);
                 return () => { clearInterval(scrollInterval.current); clearTimeout(startupDelay); };
             }, [appSettings.activeView, mode]);
+
+            // Swipe Handlers
+            const handleTouchStart = (e) => {
+                touchStartPos.current = e.touches[0].clientX;
+            };
+
+            const handleTouchEnd = (e) => {
+                if (!touchStartPos.current) return;
+                const touchEndPos = e.changedTouches[0].clientX;
+                const diff = touchStartPos.current - touchEndPos;
+                const threshold = 50;
+
+                if (Math.abs(diff) > threshold) {
+                    // Manual swipe disables auto-rotate to allow browsing
+                    setAppSettings(prev => {
+                        const currentIndex = TABS.indexOf(prev.activeView);
+                        let nextIndex = currentIndex;
+                        
+                        if (diff > 0) { // Swipe Left -> Next Tab
+                            nextIndex = (currentIndex + 1) % TABS.length;
+                        } else { // Swipe Right -> Prev Tab
+                            nextIndex = (currentIndex - 1 + TABS.length) % TABS.length;
+                        }
+                        
+                        return { ...prev, activeView: TABS[nextIndex], isAutoRotating: false };
+                    });
+                }
+                touchStartPos.current = null;
+            };
 
             const sortedDrivers = useMemo(() => [...drivers].sort((a,b) => b.points - a.points), [drivers]);
             const teamStandings = useMemo(() => {
@@ -247,7 +295,6 @@
                 return { current, next, allEventsSorted };
             }, [timetable]);
 
-            // Filter out old events for the timetable view
             const filteredTimetable = useMemo(() => {
                 const now = new Date();
                 const d = now.getDate();
@@ -260,56 +307,60 @@
                 return raceStatus.allEventsSorted.filter(ev => {
                     if (ev.dayDate > d) return true;
                     if (ev.dayDate < d) return false;
-                    // For today, keep it if it hasn't ended (assuming 2hr session length if end time unknown)
                     return (timeToNum(ev.time) + 120) > currentMinutes;
                 });
             }, [raceStatus.allEventsSorted]);
 
             return (
-                <div className="min-h-screen flex flex-col relative h-screen max-h-screen overflow-hidden bg-[#010101]">
+                <div 
+                    className="min-h-screen flex flex-col relative h-screen max-h-screen overflow-hidden bg-[#010101]"
+                    onTouchStart={handleTouchStart}
+                    onTouchEnd={handleTouchEnd}
+                >
                     <div className="carbon-overlay"></div>
 
-                    <header className="relative z-50 bg-zinc-900/95 backdrop-blur-3xl border-b-2 border-red-600 px-6 py-2 flex justify-between items-center shadow-2xl">
-                        <div className="flex items-center gap-6">
-                            <div className="bg-red-600 px-4 py-0.5 italic font-black text-2xl rounded-sm skew-x-[-15deg] shadow-[0_0_20px_rgba(232,0,32,0.4)]">F1 BLOWOUT</div>
-                            <div className="flex bg-black/60 rounded-xl p-0.5 border border-white/10">
-                                {['drivers', 'teams', 'timetable', 'roles'].map(v => (
-                                    <button 
-                                        key={v}
-                                        onClick={() => setAppSettings(p => ({ ...p, activeView: v, isAutoRotating: false }))}
-                                        className={`px-4 py-1.5 rounded-lg font-black text-[9px] uppercase tracking-widest transition-all ${appSettings.activeView === v ? 'bg-zinc-100 text-black shadow-xl scale-105' : 'text-zinc-500 hover:text-zinc-200'}`}
-                                    >
-                                        {v === 'roles' ? 'Team Roles' : v}
-                                    </button>
-                                ))}
-                            </div>
+                    <header className="relative z-50 bg-zinc-900/95 backdrop-blur-3xl border-b-2 border-red-600 px-4 md:px-6 py-2 flex flex-col gap-2 shadow-2xl">
+                        <div className="flex justify-between items-center">
+                            <div className="bg-red-600 px-3 md:px-4 py-0.5 italic font-black text-xl md:text-2xl rounded-sm skew-x-[-15deg] shadow-[0_0_20px_rgba(232,0,32,0.4)]">F1 BLOWOUT</div>
+                            <button onClick={() => setMode(mode === 'tv' ? 'admin' : 'tv')} className="bg-white/5 p-2 rounded-full hover:bg-white/10 active:scale-90 transition-transform">
+                                <Icons.Settings size={14} />
+                            </button>
                         </div>
-                        <button onClick={() => setMode(mode === 'tv' ? 'admin' : 'tv')} className="bg-white/5 p-2 rounded-full hover:bg-white/10">
-                            <Icons.Settings size={14} />
-                        </button>
+                        
+                        <div className="flex bg-black/60 rounded-xl p-0.5 border border-white/10 w-full overflow-x-auto no-scrollbar">
+                            {TABS.map(v => (
+                                <button 
+                                    key={v}
+                                    onClick={() => setAppSettings(p => ({ ...p, activeView: v, isAutoRotating: false }))}
+                                    className={`flex-1 min-w-[80px] md:min-w-0 px-2 md:px-4 py-2 rounded-lg font-black text-[9px] md:text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${appSettings.activeView === v ? 'bg-zinc-100 text-black shadow-xl' : 'text-zinc-500 hover:text-zinc-200'}`}
+                                >
+                                    {v === 'roles' ? 'Team Roles' : v}
+                                </button>
+                            ))}
+                        </div>
                     </header>
 
                     <main className="flex-1 relative overflow-hidden z-10 flex flex-col h-full">
-                        <div className={`flex-1 transition-all duration-1000 p-4 md:p-6 flex flex-col h-full overflow-hidden ${mode === 'admin' ? 'opacity-5 blur-[60px] scale-90 pointer-events-none' : 'opacity-100'}`}>
+                        <div className={`flex-1 transition-all duration-700 p-3 md:p-6 flex flex-col h-full overflow-hidden ${mode === 'admin' ? 'opacity-5 blur-[40px] scale-95 pointer-events-none' : 'opacity-100'}`}>
                             <div className="max-w-[2400px] mx-auto w-full flex flex-col h-full">
                                 
                                 {/* LIVE STATUS TICKER */}
-                                <div className="grid grid-cols-2 gap-4 mb-6">
-                                    <div className={`p-4 rounded-xl border-l-8 transition-all ${raceStatus.current ? 'bg-red-600/20 border-red-600 animate-pulse' : 'bg-zinc-900/40 border-zinc-800 opacity-40'}`}>
-                                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${raceStatus.current ? 'bg-red-600 text-white' : 'bg-zinc-700 text-zinc-400'}`}>
+                                <div className="flex flex-col md:grid md:grid-cols-2 gap-2 md:gap-4 mb-4 md:mb-6">
+                                    <div className={`p-3 md:p-4 rounded-xl border-l-[6px] md:border-l-8 transition-all ${raceStatus.current ? 'bg-red-600/20 border-red-600 animate-pulse' : 'bg-zinc-900/40 border-zinc-800 opacity-40'}`}>
+                                        <span className={`text-[8px] md:text-[10px] font-black uppercase px-2 py-0.5 rounded ${raceStatus.current ? 'bg-red-600 text-white' : 'bg-zinc-700 text-zinc-400'}`}>
                                             {raceStatus.current ? 'Live Now' : 'Standby'}
                                         </span>
-                                        <h4 className="text-3xl font-black italic uppercase tracking-tighter mt-1 truncate">
-                                            {raceStatus.current ? raceStatus.current.title : 'No Session Active'}
+                                        <h4 className="text-xl md:text-3xl font-black italic uppercase tracking-tighter mt-1 truncate">
+                                            {raceStatus.current ? raceStatus.current.title : 'Standby'}
                                         </h4>
                                     </div>
-                                    <div className="p-4 rounded-xl bg-zinc-900/60 border-l-8 border-zinc-500">
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-[10px] font-black uppercase bg-zinc-700 text-zinc-300 px-2 py-0.5 rounded">Up Next</span>
-                                            {raceStatus.next && <span className="text-[10px] font-bold text-zinc-500">{raceStatus.next.day} @ {raceStatus.next.time}</span>}
+                                    <div className="p-3 md:p-4 rounded-xl bg-zinc-900/60 border-l-[6px] md:border-l-8 border-zinc-500">
+                                        <div className="flex items-center gap-2 md:gap-3">
+                                            <span className="text-[8px] md:text-[10px] font-black uppercase bg-zinc-700 text-zinc-300 px-2 py-0.5 rounded">Up Next</span>
+                                            {raceStatus.next && <span className="text-[8px] md:text-[10px] font-bold text-zinc-500">{raceStatus.next.day} @ {raceStatus.next.time}</span>}
                                         </div>
-                                        <h4 className="text-3xl font-black italic uppercase tracking-tighter mt-1 truncate opacity-80">
-                                            {raceStatus.next ? raceStatus.next.title : 'Conclusion of Weekend'}
+                                        <h4 className="text-xl md:text-3xl font-black italic uppercase tracking-tighter mt-1 truncate opacity-80">
+                                            {raceStatus.next ? raceStatus.next.title : 'Finish'}
                                         </h4>
                                     </div>
                                 </div>
@@ -319,9 +370,9 @@
                                     onMouseEnter={() => isManuallyScrolling.current = true}
                                     onMouseLeave={() => isManuallyScrolling.current = false}
                                     onWheel={() => isManuallyScrolling.current = true}
-                                    className="flex-1 overflow-y-auto custom-scrollbar no-scrollbar pr-2 pb-10 scroll-smooth"
+                                    className="flex-1 overflow-y-auto custom-scrollbar pr-1 md:pr-2 pb-10 scroll-smooth"
                                 >
-                                    <div className="grid grid-cols-1 gap-3">
+                                    <div className="grid grid-cols-1 gap-2 md:gap-3">
                                         {appSettings.activeView === 'timetable' ? (
                                             <TimetableLayout timetable={filteredTimetable} raceStatus={raceStatus} />
                                         ) : appSettings.activeView === 'roles' ? (
@@ -330,10 +381,10 @@
                                             appSettings.activeView === 'drivers' ? 
                                                 sortedDrivers.map((d, i) => <StandingsRow key={d.id} rank={i+1} name={d.name} sub={TEAM_THEMES[d.teamId]?.name} points={d.points} color={TEAM_THEMES[d.teamId]?.color} delay={i * 0.05} />)
                                                 : 
-                                                teamStandings.map((t, i) => <StandingsRow key={t.id} rank={i+1} name={t.name} sub="World Championship" points={t.points} color={t.color} delay={i * 0.05} isTeamView={true} />)
+                                                teamStandings.map((t, i) => <StandingsRow key={t.id} rank={i+1} name={t.name} sub="Formula 1 World Championship" points={t.points} color={t.color} delay={i * 0.05} isTeamView={true} />)
                                         ) : (
                                             <div className="flex flex-col items-center justify-center h-96 opacity-30">
-                                                <p className="text-xl font-black italic uppercase tracking-widest text-center">Telemetry Offline</p>
+                                                <p className="text-sm md:text-xl font-black italic uppercase tracking-widest text-center">Telemetry Offline</p>
                                             </div>
                                         )}
                                     </div>
@@ -342,26 +393,34 @@
                         </div>
 
                         {mode === 'admin' && (
-                            <div className="absolute inset-0 z-50 flex items-center justify-center p-8 bg-black/60 backdrop-blur-md animate-in zoom-in-95 duration-300">
-                                <div className="bg-zinc-900 w-full max-w-2xl rounded-[2rem] border border-white/20 shadow-2xl p-10 space-y-6">
-                                    <h2 className="text-3xl font-black italic uppercase text-red-500">Broadcaster Admin</h2>
+                            <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 md:p-8 bg-black/80 backdrop-blur-md animate-in zoom-in-95 duration-300">
+                                <div className="bg-zinc-900 w-full max-w-2xl rounded-3xl border border-white/20 shadow-2xl p-6 md:p-10 space-y-6 overflow-y-auto max-h-[90vh]">
+                                    <h2 className="text-2xl md:text-3xl font-black italic uppercase text-red-500">Broadcaster Admin</h2>
                                     <div className="space-y-4">
-                                        <input value={appSettings.sheetId} onChange={e => setAppSettings({...appSettings, sheetId: e.target.value})} className="w-full bg-black border-2 border-white/10 rounded-xl px-4 py-2 text-md font-bold text-white mb-2" placeholder="Leaderboard ID" />
-                                        <input value={appSettings.timetableUrl} onChange={e => setAppSettings({...appSettings, timetableUrl: e.target.value})} className="w-full bg-black border-2 border-white/10 rounded-xl px-4 py-2 text-md font-bold text-white" placeholder="Timetable Pub ID" />
-                                        <button onClick={fetchSheetData} className="w-full bg-white text-black py-3 rounded-xl font-black uppercase hover:bg-zinc-200">Sync All Data</button>
-                                        <div className="p-4 bg-zinc-800 rounded-xl">
-                                            <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest mb-2">Note on Timetable:</p>
-                                            <p className="text-[10px] text-zinc-300 italic">Put a * at the start of event names in the spreadsheet to highlight them (e.g. *Grand Prix).</p>
+                                        <div>
+                                            <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest block mb-1">Leaderboard Sheet ID</label>
+                                            <input value={appSettings.sheetId} onChange={e => setAppSettings({...appSettings, sheetId: e.target.value})} className="w-full bg-black border-2 border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white mb-2 focus:border-red-600 outline-none" placeholder="Leaderboard ID" />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest block mb-1">Timetable Pub ID</label>
+                                            <input value={appSettings.timetableUrl} onChange={e => setAppSettings({...appSettings, timetableUrl: e.target.value})} className="w-full bg-black border-2 border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white focus:border-red-600 outline-none" placeholder="Timetable Pub ID" />
+                                        </div>
+                                        <button onClick={fetchSheetData} className="w-full bg-white text-black py-4 rounded-xl font-black uppercase hover:bg-zinc-200 active:scale-95 transition-all flex items-center justify-center gap-2">
+                                            <Icons.RefreshCcw size={16} className={syncStatus === 'syncing' ? 'animate-spin' : ''} /> Sync All Data
+                                        </button>
+                                        <div className="flex justify-between items-center bg-black/40 p-4 rounded-xl">
+                                            <span className="text-xs font-black uppercase italic">Auto Rotation</span>
+                                            <input type="checkbox" checked={appSettings.isAutoRotating} onChange={e => setAppSettings({...appSettings, isAutoRotating: e.target.checked})} className="w-8 h-8 accent-red-600" />
                                         </div>
                                     </div>
-                                    <button onClick={() => setMode('tv')} className="w-full bg-red-600 py-4 rounded-xl font-black text-lg uppercase italic hover:bg-red-500">Enter Broadcast</button>
+                                    <button onClick={() => setMode('tv')} className="w-full bg-red-600 py-4 rounded-xl font-black text-lg uppercase italic active:scale-95 transition-all">Enter Broadcast</button>
                                 </div>
                             </div>
                         )}
                     </main>
 
-                    <footer className="p-2 bg-black border-t border-white/5 flex justify-between px-10 items-center opacity-30 text-[8px] font-black text-zinc-600 uppercase tracking-[0.8em]">
-                        F1 BLOWOUT v9.5 — PRO MASTER ENGINE
+                    <footer className="p-2 bg-black border-t border-white/5 flex justify-between px-6 md:px-10 items-center opacity-30 text-[7px] md:text-[8px] font-black text-zinc-600 uppercase tracking-[0.4em] md:tracking-[0.8em]">
+                        F1 BLOWOUT v9.8 — MOBILE & TV OPTIMIZED ENGINE
                     </footer>
                 </div>
             );
@@ -370,25 +429,25 @@
         function TimetableLayout({ timetable, raceStatus }) {
             const days = ['Saturday', 'Sunday', 'Monday'];
             return (
-                <div className="space-y-12 pb-20">
+                <div className="space-y-8 md:space-y-12 pb-20">
                     {days.map(day => {
                         const dayEvents = timetable.filter(e => e.day === day);
                         if (dayEvents.length === 0) return null;
                         return (
-                            <div key={day} className="space-y-4 animate-in fade-in duration-1000">
-                                <h3 className="text-xl font-black uppercase italic text-red-600 border-b border-red-900/30 pb-2">{day} Program</h3>
-                                <div className="grid grid-cols-1 gap-2">
+                            <div key={day} className="space-y-3 animate-in fade-in duration-1000">
+                                <h3 className="text-lg md:text-xl font-black uppercase italic text-red-600 border-b border-red-900/30 pb-1 md:pb-2">{day} Program</h3>
+                                <div className="grid grid-cols-1 gap-1.5 md:gap-2">
                                     {dayEvents.map((ev, i) => {
                                         const isLive = raceStatus.current?.title === ev.title && raceStatus.current?.day === ev.day;
                                         return (
-                                            <div key={i} className={`flex justify-between items-center p-4 rounded-xl border transition-all ${isLive ? 'bg-red-600 text-white border-red-500 shadow-xl' : ev.isImportant ? 'important-glow border-yellow-500/20' : 'bg-zinc-900/40 border-white/5 opacity-60'}`}>
-                                                <div className="flex items-center gap-6">
-                                                    <span className={`text-2xl font-black tabular-nums ${isLive ? 'text-white' : ev.isImportant ? 'text-yellow-500' : 'text-zinc-500'}`}>{ev.time}</span>
-                                                    <span className={`text-2xl font-black uppercase tracking-tighter ${ev.isImportant ? 'text-white scale-105 origin-left' : ''}`}>{ev.title}</span>
+                                            <div key={i} className={`flex justify-between items-center p-3 md:p-4 rounded-xl border transition-all ${isLive ? 'bg-red-600 text-white border-red-500 shadow-xl' : ev.isImportant ? 'important-glow border-yellow-500/20' : 'bg-zinc-900/40 border-white/5 opacity-70'}`}>
+                                                <div className="flex items-center gap-4 md:gap-6">
+                                                    <span className={`text-xl md:text-2xl font-black tabular-nums ${isLive ? 'text-white' : ev.isImportant ? 'text-yellow-500' : 'text-zinc-500'}`}>{ev.time}</span>
+                                                    <span className={`text-lg md:text-2xl font-black uppercase tracking-tighter truncate max-w-[45vw] ${ev.isImportant ? 'text-white' : ''}`}>{ev.title}</span>
                                                 </div>
-                                                <div className="flex gap-2">
-                                                    {ev.isImportant && <span className="text-[10px] font-black uppercase bg-yellow-500 text-black px-2 py-0.5 rounded">Major</span>}
-                                                    {isLive && <span className="text-[10px] font-black uppercase bg-white text-red-600 px-2 py-0.5 rounded">Live</span>}
+                                                <div className="flex gap-1.5">
+                                                    {ev.isImportant && <span className="text-[7px] md:text-[9px] font-black uppercase bg-yellow-500 text-black px-1.5 py-0.5 rounded">Major</span>}
+                                                    {isLive && <span className="text-[7px] md:text-[9px] font-black uppercase bg-white text-red-600 px-1.5 py-0.5 rounded">Live</span>}
                                                 </div>
                                             </div>
                                         );
@@ -404,25 +463,26 @@
         function TeamRolesLayout({ drivers }) {
             const teams = Object.keys(TEAM_THEMES).filter(k => k !== 'default');
             return (
-                <div className="space-y-10 pb-20">
+                <div className="space-y-6 md:space-y-10 pb-20">
                     {teams.map(teamId => {
                         const members = drivers.filter(d => d.teamId === teamId);
                         if (members.length === 0) return null;
+                        const themeColor = TEAM_THEMES[teamId].color;
                         return (
-                            <div key={teamId} className="space-y-4">
-                                <div className="border-b-2 pb-2" style={{ borderColor: TEAM_THEMES[teamId].color }}>
-                                    <h3 className="text-3xl font-black uppercase italic" style={{ color: TEAM_THEMES[teamId].color }}>{TEAM_THEMES[teamId].name} Personnel</h3>
+                            <div key={teamId} className="space-y-2 md:space-y-4">
+                                <div className="border-b-2 pb-1 md:pb-2" style={{ borderColor: themeColor }}>
+                                    <h3 className="text-xl md:text-3xl font-black uppercase italic" style={{ color: themeColor }}>{TEAM_THEMES[teamId].name} Personnel</h3>
                                 </div>
-                                <div className="grid grid-cols-1 gap-2">
+                                <div className="grid grid-cols-1 gap-1.5 md:gap-2">
                                     {members.map((m, i) => (
-                                        <div key={i} className="flex justify-between items-center bg-zinc-900/60 p-4 rounded-xl border border-white/5">
+                                        <div key={i} className="flex justify-between items-center bg-zinc-900/60 p-3 md:p-4 rounded-xl border border-white/5" style={{ borderLeft: `6px solid ${themeColor}` }}>
                                             <div className="flex flex-col">
-                                                <span className="text-2xl font-black uppercase tracking-tighter">{m.name}</span>
-                                                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{m.role}</span>
+                                                <span className="text-lg md:text-2xl font-black uppercase tracking-tighter truncate max-w-[50vw]">{m.name}</span>
+                                                <span className="text-[8px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{m.role}</span>
                                             </div>
-                                            <div className="text-right">
-                                                <span className="text-3xl font-black italic tabular-nums">{m.points}</span>
-                                                <span className="text-[8px] font-black text-zinc-700 ml-2 uppercase">PTS</span>
+                                            <div className="text-right shrink-0">
+                                                <span className="text-xl md:text-3xl font-black italic tabular-nums">{m.points}</span>
+                                                <span className="text-[7px] md:text-[8px] font-black text-zinc-700 ml-1.5 md:ml-2 uppercase">PTS</span>
                                             </div>
                                         </div>
                                     ))}
@@ -436,15 +496,18 @@
 
         function StandingsRow({ rank, name, sub, points, color, delay, isTeamView }) {
             return (
-                <div className="group relative flex items-center bg-zinc-900/50 border border-white/5 py-2 px-8 animate-row opacity-0 overflow-hidden transition-all duration-1000 hover:bg-zinc-800/70 shadow-[0_5px_15px_rgba(0,0,0,0.3)]" style={{ animationDelay: `${delay}s`, borderLeft: `10px solid ${color}` }}>
-                    <div className="text-3xl md:text-4xl font-black italic text-zinc-800 mr-8 w-16 text-center tabular-nums leading-none">{rank}</div>
-                    <div className="flex-1">
-                        <h3 className="text-2xl md:text-4xl font-black italic uppercase leading-none tracking-tighter">{name}</h3>
-                        <p className="text-zinc-500 font-black tracking-[0.8em] uppercase text-[9px] mt-1 opacity-40 italic">{sub}</p>
+                <div 
+                    className="group relative flex items-center bg-zinc-900/50 border border-white/5 py-2 px-4 md:px-8 animate-row opacity-0 overflow-hidden transition-all hover:bg-zinc-800/70" 
+                    style={{ animationDelay: `${delay}s`, borderLeft: `8px solid ${color}` }}
+                >
+                    <div className="text-2xl md:text-4xl font-black italic text-zinc-800 mr-4 md:mr-8 w-10 md:w-16 text-center tabular-nums leading-none shrink-0">{rank}</div>
+                    <div className="flex-1 min-w-0">
+                        <h3 className="text-xl md:text-4xl font-black italic uppercase leading-none tracking-tighter truncate mobile-title-fix">{name}</h3>
+                        <p className="text-zinc-500 font-black tracking-[0.4em] md:tracking-[0.8em] uppercase text-[7px] md:text-[9px] mt-1 opacity-40 italic truncate">{sub}</p>
                     </div>
-                    <div className="text-right flex flex-col items-end">
-                        <div className="text-3xl md:text-5xl font-black italic tabular-nums leading-none group-hover:text-white transition-all duration-1000">{points}</div>
-                        <div className="text-[7px] font-black text-zinc-800 uppercase tracking-[1em] mt-1 pr-2 opacity-60 font-bold">POINTS</div>
+                    <div className="text-right flex flex-col items-end shrink-0">
+                        <div className="text-3xl md:text-5xl font-black italic tabular-nums leading-none group-hover:text-white transition-all mobile-points-fix">{points}</div>
+                        <div className="text-[6px] md:text-[7px] font-black text-zinc-800 uppercase tracking-[0.5em] md:tracking-[1em] mt-1 pr-1 md:pr-2 opacity-60 font-bold">POINTS</div>
                     </div>
                 </div>
             );
