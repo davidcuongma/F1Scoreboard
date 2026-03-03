@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Weekend Broadcaster Pro</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React and Babel for running JSX in browser -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: #010101; 
+            color: white;
+            overflow: hidden;
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .custom-scrollbar::-webkit-scrollbar { width: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; border-radius: 30px; }
+        
+        @keyframes rowEntry {
+            from { opacity: 0; transform: translateX(-200px) skewX(-15deg); }
+            to { opacity: 1; transform: translateX(0) skewX(0deg); }
+        }
+        .animate-row { 
+            animation: rowEntry 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards; 
+        }
+
+        /* Carbon fiber texture overlay */
+        .carbon-overlay {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0.1;
+            z-index: 0;
+            background-image: url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-presets="react">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        // --- Stable Inline SVG Icons ---
+        const Icons = {
+            Users: ({size=24, className=""}) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            ),
+            Shield: ({size=24, className=""}) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            ),
+            Settings: ({size=24, className=""}) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            ),
+            Tv: ({size=24, className=""}) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
+            ),
+            AlertCircle: ({size=24, className=""}) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            ),
+            RefreshCcw: ({size=24, className=""}) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+            ),
+            ExternalLink: ({size=24, className=""}) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            ),
+            FileSpreadsheet: ({size=24, className=""}) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/></svg>
+            )
+        };
+
+        // --- Configuration ---
+        const DEFAULT_SHEET_ID = '1roukKQBehdOOweJDWor5x1GlYZPIlR6WmqALTVbNG1g';
+        const appId = "F1-Broadcaster-v8.5";
+
+        // --- SVG Logos (High Fidelity Reconstructions) ---
+        const TeamLogos = {
+            ferrari: (color) => (
+                <svg viewBox="0 0 100 120" className="w-20 h-24 drop-shadow-[0_0_15px_rgba(255,235,0,0.5)]">
+                    <path d="M50 118 C 15 105 2 80 2 45 L2 18 L50 5 L98 18 L98 45 C 98 80 85 105 50 118" fill="#FFEB00" stroke="#000" strokeWidth="0.5"/>
+                    <path d="M10 20 L50 12 L90 20 L90 28 L50 20 L10 28 Z" fill="white" />
+                    <path d="M10 20 L50 12 L30 16 L10 28 Z" fill="#008C45" />
+                    <path d="M90 20 L50 12 L70 16 L90 28 Z" fill="#CD212A" />
+                    <path d="M52 40 C 48 35 40 40 40 48 C 40 55 48 60 43 75 C 38 85 32 88 32 105 H68 C 68 95 65 88 60 75 C 57 65 60 55 57 48 C 57 43 55 40 52 40" fill="black" />
+                    <text x="50" y="112" textAnchor="middle" style={{fontFamily: 'serif', fontWeight: 900, fontSize: '12px'}} fill="black">S F</text>
+                </svg>
+            ),
+            mercedes: (color) => (
+                <svg viewBox="0 0 100 100" className="w-20 h-20 drop-shadow-[0_0_20px_rgba(39,244,210,0.6)]">
+                    <circle cx="50" cy="50" r="48" stroke={color} strokeWidth="4" fill="none" />
+                    <path d="M50 50 L50 6 L58 45 L94 42 L55 55 L75 92 L50 62 L25 92 L45 55 L6 42 L42 45 Z" fill={color} />
+                </svg>
+            ),
+            mclaren: (color) => (
+                <svg viewBox="0 0 120 40" className="w-32 h-14 drop-shadow-[0_0_15px_rgba(255,128,0,0.6)]">
+                    <path d="M95 5 C 110 5 120 15 120 30 C 105 20 85 20 70 30 C 80 15 95 5 95 5" fill={color} />
+                    <path d="M5 30 L12 5 L18 22 L24 5 L31 30 M38 30 L35 25 L38 10 L45 10 M50 30 L65 30" stroke={color} strokeWidth="3" fill="none" opacity="0.4" />
+                </svg>
+            ),
+            redbull: () => (
+                <svg viewBox="0 0 140 100" className="w-36 h-28 drop-shadow-[0_0_25px_rgba(255,204,0,0.5)]">
+                    <circle cx="70" cy="45" r="30" fill="#FFCC00" />
+                    <path d="M15 70 Q 45 35 70 60 L 70 75 Q 45 50 15 80 Z" fill="#E80020" />
+                    <path d="M125 70 Q 95 35 70 60 L 70 75 Q 95 50 125 80 Z" fill="#E80020" />
+                    <path d="M60 70 L80 70 L70 95 Z" fill="#E80020" />
+                </svg>
+            )
+        };
+
+        const TEAM_THEMES = {
+            ferrari: { name: 'Ferrari', color: '#E80020', logo: TeamLogos.ferrari },
+            mercedes: { name: 'Mercedes', color: '#27F4D2', logo: TeamLogos.mercedes },
+            mclaren: { name: 'McLaren', color: '#FF8000', logo: TeamLogos.mclaren },
+            redbull: { name: 'Red Bull', color: '#3671C6', logo: TeamLogos.redbull },
+            default: { name: 'Independent', color: '#52525b', logo: (c) => <div className="w-16 h-16 bg-zinc-700 rounded-full flex items-center justify-center font-black italic">F1</div> }
+        };
+
+        function App() {
+            const [appSettings, setAppSettings] = useState({
+                sheetId: DEFAULT_SHEET_ID,
+                rotationSpeed: 12,
+                isAutoRotating: true,
+                lastSync: null,
+                activeView: 'drivers'
+            });
+            const [drivers, setDrivers] = useState([]);
+            const [mode, setMode] = useState('tv');
+            const [syncStatus, setSyncStatus] = useState('idle');
+            const [errorMessage, setErrorMessage] = useState('');
+
+            const fetchSheetData = async () => {
+                setSyncStatus('syncing');
+                setErrorMessage('');
+                
+                let cleanId = appSettings.sheetId.trim();
+                if (cleanId.includes('/d/')) {
+                    const parts = cleanId.split('/d/');
+                    if (parts[1]) cleanId = parts[1].split('/')[0];
+                }
+
+                try {
+                    const url = `https://docs.google.com/spreadsheets/d/${cleanId}/export?format=csv&gid=0&cachebust=${Date.now()}`;
+                    const response = await fetch(url);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP Error ${response.status}: Ensure the sheet is "Published to the web" (File > Share > Publish to web)`);
+                    }
+                    
+                    const csvText = await response.text();
+                    if (csvText.includes('<!DOCTYPE html>')) {
+                        throw new Error("Received HTML instead of CSV. Ensure the sheet is Published to web as CSV.");
+                    }
+
+                    const rows = csvText.split(/\r?\n/).filter(r => r.trim() !== '');
+                    
+                    const parsed = rows.slice(1).map((row, idx) => {
+                        const cols = row.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || [];
+                        const cleanCols = cols.map(c => c.replace(/^"|"$/g, '').trim());
+                        const teamKey = cleanCols[1]?.toLowerCase().replace(/\s/g, '') || 'default';
+                        
+                        // Sum Columns C, D, E, F (indexes 2, 3, 4, 5)
+                        const racePoints = cleanCols.slice(2, 6).map(p => {
+                            const val = parseInt(p);
+                            return isNaN(val) ? 0 : val;
+                        });
+                        const total = racePoints.reduce((a, b) => a + b, 0);
+
+                        return {
+                            id: `driver-${idx}`,
+                            name: cleanCols[0] || 'Unknown',
+                            teamId: teamKey,
+                            points: total
+                        };
+                    });
+
+                    if (parsed.length === 0) throw new Error("No driver data found in the spreadsheet.");
+                    
+                    setDrivers(parsed);
+                    setSyncStatus('idle');
+                    setAppSettings(prev => ({ ...prev, lastSync: new Date().toISOString() }));
+                } catch (err) {
+                    console.error("Fetch Error:", err);
+                    setSyncStatus('error');
+                    setErrorMessage(err.message);
+                }
+            };
+
+            useEffect(() => {
+                fetchSheetData();
+                const i = setInterval(fetchSheetData, 30000);
+                return () => clearInterval(i);
+            }, [appSettings.sheetId]);
+
+            useEffect(() => {
+                if (mode === 'tv' && appSettings.isAutoRotating) {
+                    const i = setInterval(() => {
+                        setAppSettings(prev => ({
+                            ...prev,
+                            activeView: prev.activeView === 'drivers' ? 'teams' : 'drivers'
+                        }));
+                    }, appSettings.rotationSpeed * 1000);
+                    return () => clearInterval(i);
+                }
+            }, [mode, appSettings.isAutoRotating, appSettings.rotationSpeed]);
+
+            const sortedDrivers = useMemo(() => [...drivers].sort((a,b) => b.points - a.points), [drivers]);
+            const teamStandings = useMemo(() => {
+                const ts = Object.keys(TEAM_THEMES).filter(k => k !== 'default').map(key => ({
+                    id: key,
+                    ...TEAM_THEMES[key],
+                    points: drivers.filter(d => d.teamId === key).reduce((s, d) => s + d.points, 0)
+                }));
+                return ts.sort((a,b) => b.points - a.points);
+            }, [drivers]);
+
+            return (
+                <div className="min-h-screen flex flex-col relative">
+                    <div className="carbon-overlay"></div>
+
+                    <header className="relative z-50 bg-zinc-900/95 backdrop-blur-3xl border-b-4 border-red-600 px-12 py-5 flex justify-between items-center shadow-2xl">
+                        <div className="flex items-center gap-10">
+                            <div className="bg-red-600 px-8 py-2 italic font-black text-5xl rounded-sm skew-x-[-15deg] shadow-[0_0_50px_rgba(232,0,32,0.4)] transition-transform hover:scale-105 cursor-pointer">F1</div>
+                            <div className="flex bg-black/60 rounded-2xl p-1.5 border border-white/10">
+                                <button 
+                                    onClick={() => setAppSettings(p => ({ ...p, activeView: 'drivers', isAutoRotating: false }))}
+                                    className={`flex items-center gap-3 px-8 py-3 rounded-xl font-black text-sm uppercase tracking-widest transition-all ${appSettings.activeView === 'drivers' ? 'bg-zinc-100 text-black shadow-xl scale-105' : 'text-zinc-500 hover:text-zinc-200'}`}
+                                >
+                                    <Icons.Users size={18} /> Drivers
+                                </button>
+                                <button 
+                                    onClick={() => setAppSettings(p => ({ ...p, activeView: 'teams', isAutoRotating: false }))}
+                                    className={`flex items-center gap-3 px-8 py-3 rounded-xl font-black text-sm uppercase tracking-widest transition-all ${appSettings.activeView === 'teams' ? 'bg-zinc-100 text-black shadow-xl scale-105' : 'text-zinc-500 hover:text-zinc-200'}`}
+                                >
+                                    <Icons.Shield size={18} /> Constructors
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-6 items-center">
+                            {appSettings.isAutoRotating && (
+                                <div className="flex items-center gap-3 bg-red-950/20 px-4 py-2 rounded-lg border border-red-900/40 animate-pulse">
+                                    <div className="w-2 h-2 bg-red-600 rounded-full"></div>
+                                    <span className="text-[11px] font-black uppercase text-red-500 tracking-[0.2em]">Live Rotation</span>
+                                </div>
+                            )}
+                            <button 
+                                onClick={() => setMode(mode === 'tv' ? 'admin' : 'tv')}
+                                className={`flex items-center gap-3 px-8 py-3 rounded-full font-black uppercase tracking-widest text-xs transition-all ${mode === 'admin' ? 'bg-red-600' : 'bg-white/5 hover:bg-white/10 hover:scale-105'}`}
+                            >
+                                {mode === 'tv' ? <Icons.Settings size={18} /> : <Icons.Tv size={18} />}
+                                {mode === 'tv' ? 'Settings' : 'Broadcast'}
+                            </button>
+                        </div>
+                    </header>
+
+                    <main className="flex-1 relative z-10">
+                        <div className={`h-full w-full p-12 transition-all duration-1000 ${mode === 'admin' ? 'opacity-5 blur-[60px] scale-90 pointer-events-none' : 'opacity-100'}`}>
+                            <div className="max-w-[1900px] mx-auto flex flex-col h-full">
+                                <div className="flex justify-between items-end mb-12 border-b-8 border-white/5 pb-10">
+                                    <div className="animate-in slide-in-from-left duration-700">
+                                        <span className="text-red-600 font-black italic uppercase tracking-[0.6em] text-3xl">Classification</span>
+                                        <h2 className="text-[10rem] font-black italic uppercase tracking-tighter leading-none -ml-3 drop-shadow-2xl">
+                                            {appSettings.activeView === 'drivers' ? 'Driver' : 'Team'}
+                                        </h2>
+                                    </div>
+                                    <div className="text-right pb-4 animate-in slide-in-from-right duration-700">
+                                        <p className="text-zinc-500 font-black uppercase tracking-[0.8em] text-lg mb-6 italic tracking-widest">Grand Prix Broadcaster</p>
+                                        <p className="text-7xl font-black italic text-zinc-100 tabular-nums">
+                                            {appSettings.lastSync ? new Date(appSettings.lastSync).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--:--'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-8 overflow-y-auto no-scrollbar pr-4 pb-32">
+                                    {drivers.length > 0 ? (
+                                        appSettings.activeView === 'drivers' ? 
+                                            sortedDrivers.map((d, i) => <StandingsRow key={d.id} rank={i+1} name={d.name} sub={TEAM_THEMES[d.teamId]?.name} points={d.points} color={TEAM_THEMES[d.teamId]?.color} logo={TEAM_THEMES[d.teamId]?.logo} delay={i * 0.1} />)
+                                            : 
+                                            teamStandings.map((t, i) => <StandingsRow key={t.id} rank={i+1} name={t.name} sub="Formula 1 World Championship" points={t.points} color={t.color} logo={t.logo} delay={i * 0.1} />)
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center h-96 border-4 border-dashed border-zinc-900 rounded-3xl opacity-40">
+                                            <Icons.FileSpreadsheet size={80} className="mb-6" />
+                                            <p className="text-3xl font-black italic uppercase tracking-widest">Connect Spreadsheet in Settings</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {mode === 'admin' && (
+                            <div className="absolute inset-0 z-50 flex items-center justify-center p-16 bg-black/60 backdrop-blur-md animate-in zoom-in-95 duration-300">
+                                <div className="bg-zinc-900 w-full max-w-4xl rounded-[4rem] border border-white/20 shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden p-16 space-y-12">
+                                    <h2 className="text-5xl font-black italic uppercase text-red-500 flex items-center gap-6 text-zinc-100">Race Control</h2>
+                                    
+                                    <div className="space-y-4">
+                                        <label className="text-xs font-black uppercase text-zinc-500 tracking-widest">Google Sheet Master Link</label>
+                                        <div className="flex gap-4">
+                                            <input 
+                                                value={appSettings.sheetId} 
+                                                onChange={e => setAppSettings({...appSettings, sheetId: e.target.value})}
+                                                className="flex-1 bg-black border-2 border-white/10 rounded-2xl px-6 py-4 text-xl font-bold focus:border-red-600 outline-none transition-all text-white"
+                                                placeholder="Paste Sheet URL or ID"
+                                            />
+                                            <button onClick={fetchSheetData} className="bg-white text-black px-10 rounded-2xl font-black uppercase hover:bg-zinc-200 transition-colors flex items-center gap-2">
+                                                <Icons.RefreshCcw size={18} className={syncStatus === 'syncing' ? 'animate-spin' : ''} /> Sync
+                                            </button>
+                                        </div>
+                                        
+                                        {errorMessage && (
+                                            <div className="bg-red-950/40 border border-red-900/60 p-6 rounded-2xl space-y-3">
+                                                <p className="text-red-500 font-bold uppercase text-sm flex items-center gap-2">
+                                                    <Icons.AlertCircle size={18} /> {errorMessage}
+                                                </p>
+                                                <div className="text-xs text-zinc-400 space-y-1 leading-relaxed">
+                                                    <p className="font-black text-zinc-200 uppercase tracking-widest underline">Troubleshooting:</p>
+                                                    <p>1. Open your Sheet, go to <span className="text-zinc-100 font-bold italic">File > Share > Publish to the web</span>.</p>
+                                                    <p>2. Select <span className="text-zinc-100 font-bold">"Entire Document"</span> and <span className="text-zinc-100 font-bold">"Comma-separated values (.csv)"</span>.</p>
+                                                    <p>3. Click <span className="text-zinc-100 font-bold italic">Publish</span> and copy the ID from the URL.</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-8">
+                                        <div className="flex justify-between items-center bg-black/40 p-10 rounded-3xl border border-white/5">
+                                            <div>
+                                                <h3 className="font-black uppercase text-xl italic text-zinc-200">Auto Rotation</h3>
+                                                <p className="text-xs text-zinc-500 uppercase tracking-widest mt-1">Switch views every {appSettings.rotationSpeed}s</p>
+                                            </div>
+                                            <input type="checkbox" checked={appSettings.isAutoRotating} onChange={e => setAppSettings({...appSettings, isAutoRotating: e.target.checked})} className="w-12 h-12 accent-red-600 cursor-pointer shadow-lg" />
+                                        </div>
+                                        <div className="flex justify-between items-center bg-black/40 p-10 rounded-3xl border border-white/5">
+                                            <div className="w-full">
+                                                <h3 className="font-black uppercase text-xl italic text-zinc-200">Rotation Delay</h3>
+                                                <input type="range" min="5" max="60" step="5" value={appSettings.rotationSpeed} onChange={e => setAppSettings({...appSettings, rotationSpeed: parseInt(e.target.value)})} className="w-full mt-4 accent-red-600" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-4">
+                                        <button onClick={() => setMode('tv')} className="flex-1 bg-red-600 py-6 rounded-3xl font-black text-2xl uppercase italic hover:bg-red-500 transition-colors shadow-2xl">Return to Broadcast</button>
+                                        <a href={appSettings.sheetId ? (appSettings.sheetId.includes('http') ? appSettings.sheetId : `https://docs.google.com/spreadsheets/d/${appSettings.sheetId}`) : '#'} target="_blank" className="bg-zinc-800 px-8 rounded-3xl flex items-center justify-center hover:bg-zinc-700 transition-all">
+                                            <Icons.ExternalLink size={24} />
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+
+                    <footer className="p-8 bg-black border-t-4 border-white/5 flex justify-between px-20 items-center">
+                        <div className="flex items-center gap-6">
+                            <span className="text-[13px] font-black text-zinc-700 uppercase tracking-[0.8em]">Broadcaster OS v8.5 — Melbourne GP Special Edition — Build {appId}</span>
+                        </div>
+                    </footer>
+                </div>
+            );
+        }
+
+        function StandingsRow({ rank, name, sub, points, color, logo, delay }) {
+            return (
+                <div 
+                    className="group relative flex items-center bg-zinc-900/50 border border-white/5 py-14 px-20 animate-row opacity-0 overflow-hidden transition-all duration-1000 hover:bg-zinc-800/70 shadow-[0_15px_40px_rgba(0,0,0,0.6)]"
+                    style={{ animationDelay: `${delay}s`, borderLeft: `32px solid ${color}` }}
+                >
+                    <div className="text-[10rem] md:text-[13rem] font-black italic text-zinc-800 mr-28 w-48 text-center tabular-nums leading-none drop-shadow-2xl transition-all group-hover:text-zinc-600">
+                        {rank}
+                    </div>
+                    <div className="mr-28 transition-all duration-1000 group-hover:scale-150 group-hover:rotate-6">
+                        {logo ? logo(color) : null}
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="text-8xl md:text-[11rem] font-black italic uppercase leading-none tracking-tighter transition-all group-hover:translate-x-12 duration-700">
+                            {name}
+                        </h3>
+                        <p className="text-zinc-500 font-black tracking-[1em] uppercase text-4xl mt-10 opacity-30 italic transition-all group-hover:opacity-100">
+                            {sub}
+                        </p>
+                    </div>
+                    <div className="text-right flex flex-col items-end">
+                        <div className="text-[14rem] md:text-[18rem] font-black italic tabular-nums leading-none tracking-tighter group-hover:text-white transition-all duration-1000 group-hover:scale-110 drop-shadow-[0_10px_30px_rgba(255,255,255,0.1)]">
+                            {points}
+                        </div>
+                        <div className="text-2xl font-black text-zinc-800 uppercase tracking-[1.2em] mt-10 pr-10 opacity-60">SEASON TOTAL</div>
+                    </div>
+                </div>
+            );
+        }
+
+        function LoadingScreen() {
+            return (
+                <div className="min-h-screen bg-black flex flex-col items-center justify-center p-20">
+                    <div className="w-64 h-64 border-[24px] border-red-600 border-t-transparent rounded-full animate-spin mb-24 shadow-[0_0_150px_rgba(232,0,32,0.4)]"></div>
+                    <h2 className="text-9xl font-black italic uppercase tracking-tighter text-white animate-pulse">Race Control Online</h2>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
