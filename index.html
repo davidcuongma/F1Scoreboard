@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>F1 Weekend Broadcaster Pro</title>
+    <title>F1 Blowout Broadcaster</title>
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- React and Babel for running JSX in browser -->
@@ -19,18 +19,17 @@
             overflow: hidden;
         }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; border-radius: 30px; }
         
         @keyframes rowEntry {
-            from { opacity: 0; transform: translateX(-100px) skewX(-10deg); }
+            from { opacity: 0; transform: translateX(-60px) skewX(-5deg); }
             to { opacity: 1; transform: translateX(0) skewX(0deg); }
         }
         .animate-row { 
-            animation: rowEntry 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; 
+            animation: rowEntry 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; 
         }
 
-        /* Carbon fiber texture overlay */
         .carbon-overlay {
             position: fixed;
             inset: 0;
@@ -38,6 +37,12 @@
             opacity: 0.1;
             z-index: 0;
             background-image: url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
+        }
+
+        .important-glow {
+            text-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+            border: 1px solid rgba(255, 215, 0, 0.2) !important;
+            background: linear-gradient(to right, rgba(255, 215, 0, 0.05), transparent) !important;
         }
     </style>
 </head>
@@ -47,31 +52,18 @@
     <script type="text/babel" data-presets="react">
         const { useState, useEffect, useMemo, useRef } = React;
 
-        // --- Stable Inline SVG Icons ---
         const Icons = {
-            Users: ({size=24, className=""}) => (
-                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            ),
-            Shield: ({size=24, className=""}) => (
-                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            ),
             Settings: ({size=24, className=""}) => (
-                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 1 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             ),
             Tv: ({size=24, className=""}) => (
                 <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
             ),
-            AlertCircle: ({size=24, className=""}) => (
-                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            ),
             RefreshCcw: ({size=24, className=""}) => (
                 <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
             ),
-            ExternalLink: ({size=24, className=""}) => (
-                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-            ),
-            FileSpreadsheet: ({size=24, className=""}) => (
-                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/></svg>
+            AlertCircle: ({size=24, className=""}) => (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             )
         };
 
@@ -83,18 +75,20 @@
             default: { name: 'Independent', color: '#52525b' }
         };
 
-        const DEFAULT_SHEET_ID = '1roukKQBehdOOweJDWor5x1GlYZPIlR6WmqALTVbNG1g';
-        const appId = "F1-Broadcaster-v8.9";
+        const DEFAULT_LEADERBOARD_ID = '1roukKQBehdOOweJDWor5x1GlYZPIlR6WmqALTVbNG1g';
+        const DEFAULT_TIMETABLE_PUB_ID = '2PACX-1vSg_R5DdIr5GaBfcLRPJumD7r4LPmsfvfvszJSHbJ7UodYOBS7Hnv7YZtuqSgSEyozvSL63NrlzGFFY';
 
         function App() {
             const [appSettings, setAppSettings] = useState({
-                sheetId: DEFAULT_SHEET_ID,
-                rotationSpeed: 12,
+                sheetId: DEFAULT_LEADERBOARD_ID,
+                timetableUrl: DEFAULT_TIMETABLE_PUB_ID,
+                rotationSpeed: 15,
                 isAutoRotating: true,
                 lastSync: null,
                 activeView: 'drivers'
             });
             const [drivers, setDrivers] = useState([]);
+            const [timetable, setTimetable] = useState([]);
             const [mode, setMode] = useState('tv');
             const [syncStatus, setSyncStatus] = useState('idle');
             const [errorMessage, setErrorMessage] = useState('');
@@ -107,57 +101,63 @@
                 setSyncStatus('syncing');
                 setErrorMessage('');
                 
-                let cleanId = appSettings.sheetId.trim();
-                if (cleanId.includes('/d/')) {
-                    const parts = cleanId.split('/d/');
-                    if (parts[1]) cleanId = parts[1].split('/')[0];
-                }
-
                 try {
-                    const url = `https://docs.google.com/spreadsheets/d/${cleanId}/export?format=csv&gid=0&cachebust=${Date.now()}`;
-                    const response = await fetch(url);
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP Error ${response.status}: Check "Publish to web" settings.`);
-                    }
-                    
-                    const csvText = await response.text();
-                    const rows = csvText.split(/\r?\n/).filter(r => r.trim() !== '');
-                    
-                    const parsed = rows.slice(1).map((row, idx) => {
-                        const cols = row.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || [];
-                        const cleanCols = cols.map(c => c.replace(/^"|"$/g, '').trim());
-                        
-                        // Enhanced team mapping including "read bull" typo support
-                        const rawTeam = cleanCols[1]?.toLowerCase() || '';
-                        let teamKey = 'default';
-                        if (rawTeam.includes('red bull') || rawTeam.includes('redbull') || rawTeam.includes('oracle') || rawTeam.includes('read bull')) teamKey = 'redbull';
-                        else if (rawTeam.includes('ferrari')) teamKey = 'ferrari';
-                        else if (rawTeam.includes('mercedes')) teamKey = 'mercedes';
-                        else if (rawTeam.includes('mclaren')) teamKey = 'mclaren';
-                        
-                        // Sum Columns C, D, E, F
-                        const racePoints = cleanCols.slice(2, 6).map(p => {
-                            const val = parseInt(p);
-                            return isNaN(val) ? 0 : val;
+                    let cleanId = appSettings.sheetId.trim();
+                    if (cleanId.includes('/d/')) cleanId = cleanId.split('/d/')[1].split('/')[0];
+                    const lbResp = await fetch(`https://docs.google.com/spreadsheets/d/${cleanId}/export?format=csv&gid=0&cachebust=${Date.now()}`);
+                    if (lbResp.ok) {
+                        const csv = await lbResp.text();
+                        const rows = csv.split(/\r?\n/).filter(r => r.trim() !== '');
+                        const parsed = rows.slice(1).map((row, idx) => {
+                            const cols = row.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || [];
+                            const cleanCols = cols.map(c => c.replace(/^"|"$/g, '').trim());
+                            const rawTeam = cleanCols[1]?.toLowerCase() || '';
+                            let teamKey = 'default';
+                            if (rawTeam.includes('red bull') || rawTeam.includes('redbull') || rawTeam.includes('oracle') || rawTeam.includes('read bull')) teamKey = 'redbull';
+                            else if (rawTeam.includes('ferrari')) teamKey = 'ferrari';
+                            else if (rawTeam.includes('mercedes')) teamKey = 'mercedes';
+                            else if (rawTeam.includes('mclaren')) teamKey = 'mclaren';
+                            
+                            const totalPoints = cleanCols.slice(3, 7).reduce((a, b) => a + (parseInt(b) || 0), 0);
+                            return {
+                                id: `person-${idx}`,
+                                name: cleanCols[0] || 'Unknown',
+                                teamId: teamKey,
+                                role: cleanCols[2] || 'Driver',
+                                points: totalPoints
+                            };
                         });
-                        const total = racePoints.reduce((a, b) => a + b, 0);
+                        setDrivers(parsed);
+                    }
 
-                        return {
-                            id: `driver-${idx}`,
-                            name: cleanCols[0] || 'Unknown',
-                            teamId: teamKey,
-                            points: total
-                        };
-                    });
+                    const ttResp = await fetch(`https://docs.google.com/spreadsheets/d/e/${appSettings.timetableUrl}/pub?output=csv&cachebust=${Date.now()}`);
+                    if (ttResp.ok) {
+                        const csv = await ttResp.text();
+                        const rows = csv.split(/\r?\n/).filter(r => r.trim() !== '');
+                        const events = [];
+                        const dayMeta = [{ name: 'Saturday', date: 8 }, { name: 'Sunday', date: 9 }, { name: 'Monday', date: 10 }];
+                        
+                        rows.slice(1).forEach(row => {
+                            const cols = row.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+                            cols.forEach((cell, dayIdx) => {
+                                if (cell && cell.includes(':')) {
+                                    const rawTitle = cell.split(' ').slice(1).join(' ');
+                                    events.push({
+                                        day: dayMeta[dayIdx].name,
+                                        dayDate: dayMeta[dayIdx].date,
+                                        time: cell.split(' ')[0],
+                                        title: rawTitle.replace(/^\*/, ''),
+                                        isImportant: rawTitle.startsWith('*')
+                                    });
+                                }
+                            });
+                        });
+                        setTimetable(events);
+                    }
 
-                    if (parsed.length === 0) throw new Error("No data found.");
-                    
-                    setDrivers(parsed);
                     setSyncStatus('idle');
                     setAppSettings(prev => ({ ...prev, lastSync: new Date().toISOString() }));
                 } catch (err) {
-                    console.error("Fetch Error:", err);
                     setSyncStatus('error');
                     setErrorMessage(err.message);
                 }
@@ -167,29 +167,27 @@
                 fetchSheetData();
                 const i = setInterval(fetchSheetData, 30000);
                 return () => clearInterval(i);
-            }, [appSettings.sheetId]);
+            }, [appSettings.sheetId, appSettings.timetableUrl]);
 
             useEffect(() => {
                 if (mode === 'tv' && appSettings.isAutoRotating) {
                     const i = setInterval(() => {
-                        setAppSettings(prev => ({
-                            ...prev,
-                            activeView: prev.activeView === 'drivers' ? 'teams' : 'drivers'
-                        }));
+                        setAppSettings(prev => {
+                            const views = ['drivers', 'teams', 'timetable'];
+                            const nextIndex = (views.indexOf(prev.activeView) + 1) % views.length;
+                            return { ...prev, activeView: views[nextIndex] };
+                        });
                     }, appSettings.rotationSpeed * 1000);
                     return () => clearInterval(i);
                 }
-            }, [mode, appSettings.isAutoRotating, appSettings.rotationSpeed]);
+            }, [mode, appSettings.isAutoRotating, appSettings.rotationSpeed, appSettings.activeView]);
 
             useEffect(() => {
                 const container = scrollRef.current;
                 if (!container || mode !== 'tv') return;
-
                 container.scrollTop = 0;
-
                 const performScroll = () => {
                     if (isManuallyScrolling.current) return;
-                    
                     if (container.scrollTop + container.clientHeight >= container.scrollHeight - 5) {
                         clearInterval(scrollInterval.current);
                         setTimeout(() => {
@@ -200,85 +198,119 @@
                         container.scrollTop += 1;
                     }
                 };
-
                 const startScroller = () => {
                     clearInterval(scrollInterval.current);
                     scrollInterval.current = setInterval(performScroll, 35);
                 };
-
                 const startupDelay = setTimeout(startScroller, 6000);
-
-                return () => {
-                    clearInterval(scrollInterval.current);
-                    clearTimeout(startupDelay);
-                };
+                return () => { clearInterval(scrollInterval.current); clearTimeout(startupDelay); };
             }, [appSettings.activeView, mode]);
 
             const sortedDrivers = useMemo(() => [...drivers].sort((a,b) => b.points - a.points), [drivers]);
             const teamStandings = useMemo(() => {
-                const ts = Object.keys(TEAM_THEMES).filter(k => k !== 'default').map(key => ({
+                return Object.keys(TEAM_THEMES).filter(k => k !== 'default').map(key => ({
                     id: key,
                     ...TEAM_THEMES[key],
-                    points: drivers.filter(d => d.teamId === key).reduce((s, d) => s + d.points, 0)
-                }));
-                return ts.sort((a,b) => b.points - a.points);
+                    points: drivers.filter(d => d.teamId === key).reduce((sum, d) => sum + d.points, 0)
+                })).sort((a,b) => b.points - a.points);
             }, [drivers]);
 
+            const raceStatus = useMemo(() => {
+                const now = new Date();
+                const d = now.getDate();
+                const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                const timeToNum = (t) => {
+                    const [h, m] = t.split(':').map(Number);
+                    return h * 60 + m;
+                };
+
+                const allEventsSorted = [...timetable].sort((a, b) => (a.dayDate - b.dayDate) || (timeToNum(a.time) - timeToNum(b.time)));
+
+                let current = null;
+                let next = null;
+
+                for (let i = 0; i < allEventsSorted.length; i++) {
+                    const ev = allEventsSorted[i];
+                    const evStart = timeToNum(ev.time);
+                    const nextEv = allEventsSorted[i + 1];
+                    const evEnd = nextEv && nextEv.dayDate === ev.dayDate ? timeToNum(nextEv.time) : evStart + 120;
+
+                    if (d === ev.dayDate && currentMinutes >= evStart && currentMinutes < evEnd) {
+                        current = ev;
+                        next = nextEv || null;
+                        break;
+                    } else if ((ev.dayDate > d) || (d === ev.dayDate && evStart > currentMinutes)) {
+                        next = ev;
+                        break;
+                    }
+                }
+                return { current, next, allEventsSorted };
+            }, [timetable]);
+
+            // Filter out old events for the timetable view
+            const filteredTimetable = useMemo(() => {
+                const now = new Date();
+                const d = now.getDate();
+                const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                const timeToNum = (t) => {
+                    const [h, m] = t.split(':').map(Number);
+                    return h * 60 + m;
+                };
+
+                return raceStatus.allEventsSorted.filter(ev => {
+                    if (ev.dayDate > d) return true;
+                    if (ev.dayDate < d) return false;
+                    // For today, keep it if it hasn't ended (assuming 2hr session length if end time unknown)
+                    return (timeToNum(ev.time) + 120) > currentMinutes;
+                });
+            }, [raceStatus.allEventsSorted]);
+
             return (
-                <div className="min-h-screen flex flex-col relative h-screen max-h-screen overflow-hidden bg-[#020202]">
+                <div className="min-h-screen flex flex-col relative h-screen max-h-screen overflow-hidden bg-[#010101]">
                     <div className="carbon-overlay"></div>
 
                     <header className="relative z-50 bg-zinc-900/95 backdrop-blur-3xl border-b-2 border-red-600 px-6 py-2 flex justify-between items-center shadow-2xl">
                         <div className="flex items-center gap-6">
-                            <div className="bg-red-600 px-4 py-0.5 italic font-black text-2xl rounded-sm skew-x-[-15deg] shadow-[0_0_20px_rgba(232,0,32,0.4)] transition-transform hover:scale-105 cursor-pointer">F1</div>
+                            <div className="bg-red-600 px-4 py-0.5 italic font-black text-2xl rounded-sm skew-x-[-15deg] shadow-[0_0_20px_rgba(232,0,32,0.4)]">F1 BLOWOUT</div>
                             <div className="flex bg-black/60 rounded-xl p-0.5 border border-white/10">
-                                <button 
-                                    onClick={() => setAppSettings(p => ({ ...p, activeView: 'drivers', isAutoRotating: false }))}
-                                    className={`flex items-center gap-2 px-4 py-1.5 rounded-lg font-black text-[9px] uppercase tracking-widest transition-all ${appSettings.activeView === 'drivers' ? 'bg-zinc-100 text-black shadow-xl' : 'text-zinc-500'}`}
-                                >
-                                    Drivers
-                                </button>
-                                <button 
-                                    onClick={() => setAppSettings(p => ({ ...p, activeView: 'teams', isAutoRotating: false }))}
-                                    className={`flex items-center gap-2 px-4 py-1.5 rounded-lg font-black text-[9px] uppercase tracking-widest transition-all ${appSettings.activeView === 'teams' ? 'bg-zinc-100 text-black shadow-xl' : 'text-zinc-500'}`}
-                                >
-                                    Constructors
-                                </button>
+                                {['drivers', 'teams', 'timetable', 'roles'].map(v => (
+                                    <button 
+                                        key={v}
+                                        onClick={() => setAppSettings(p => ({ ...p, activeView: v, isAutoRotating: false }))}
+                                        className={`px-4 py-1.5 rounded-lg font-black text-[9px] uppercase tracking-widest transition-all ${appSettings.activeView === v ? 'bg-zinc-100 text-black shadow-xl scale-105' : 'text-zinc-500 hover:text-zinc-200'}`}
+                                    >
+                                        {v === 'roles' ? 'Team Roles' : v}
+                                    </button>
+                                ))}
                             </div>
                         </div>
-
-                        <div className="flex gap-4 items-center">
-                            {appSettings.isAutoRotating && (
-                                <div className="flex items-center gap-2 bg-red-950/20 px-3 py-1 rounded-lg border border-red-900/40">
-                                    <div className="w-1 h-1 bg-red-600 rounded-full animate-pulse"></div>
-                                    <span className="text-[8px] font-black uppercase text-red-500 tracking-[0.2em]">Live Rotation</span>
-                                </div>
-                            )}
-                            <button 
-                                onClick={() => setMode(mode === 'tv' ? 'admin' : 'tv')}
-                                className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-black uppercase tracking-widest text-[8px] transition-all ${mode === 'admin' ? 'bg-red-600' : 'bg-white/5 hover:bg-white/10'}`}
-                            >
-                                {mode === 'tv' ? <Icons.Settings size={12} /> : <Icons.Tv size={12} />}
-                                {mode === 'tv' ? 'Settings' : 'Broadcast'}
-                            </button>
-                        </div>
+                        <button onClick={() => setMode(mode === 'tv' ? 'admin' : 'tv')} className="bg-white/5 p-2 rounded-full hover:bg-white/10">
+                            <Icons.Settings size={14} />
+                        </button>
                     </header>
 
                     <main className="flex-1 relative overflow-hidden z-10 flex flex-col h-full">
                         <div className={`flex-1 transition-all duration-1000 p-4 md:p-6 flex flex-col h-full overflow-hidden ${mode === 'admin' ? 'opacity-5 blur-[60px] scale-90 pointer-events-none' : 'opacity-100'}`}>
                             <div className="max-w-[2400px] mx-auto w-full flex flex-col h-full">
-                                <div className="flex justify-between items-end mb-4 border-b-2 border-white/5 pb-2">
-                                    <div className="animate-in slide-in-from-left duration-700">
-                                        <span className="text-red-600 font-black italic uppercase tracking-[0.6em] text-sm">Season Standings</span>
-                                        <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter leading-none -ml-0.5 drop-shadow-2xl">
-                                            {appSettings.activeView === 'drivers' ? 'Driver' : 'Constructor'}
-                                        </h2>
+                                
+                                {/* LIVE STATUS TICKER */}
+                                <div className="grid grid-cols-2 gap-4 mb-6">
+                                    <div className={`p-4 rounded-xl border-l-8 transition-all ${raceStatus.current ? 'bg-red-600/20 border-red-600 animate-pulse' : 'bg-zinc-900/40 border-zinc-800 opacity-40'}`}>
+                                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${raceStatus.current ? 'bg-red-600 text-white' : 'bg-zinc-700 text-zinc-400'}`}>
+                                            {raceStatus.current ? 'Live Now' : 'Standby'}
+                                        </span>
+                                        <h4 className="text-3xl font-black italic uppercase tracking-tighter mt-1 truncate">
+                                            {raceStatus.current ? raceStatus.current.title : 'No Session Active'}
+                                        </h4>
                                     </div>
-                                    <div className="text-right pb-1 animate-in slide-in-from-right duration-700">
-                                        <p className="text-zinc-500 font-black uppercase tracking-[0.8em] text-[8px] mb-1 italic tracking-widest opacity-50">Melbourne 2026 Feed</p>
-                                        <p className="text-3xl font-black italic text-zinc-100 tabular-nums">
-                                            {appSettings.lastSync ? new Date(appSettings.lastSync).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--:--'}
-                                        </p>
+                                    <div className="p-4 rounded-xl bg-zinc-900/60 border-l-8 border-zinc-500">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-[10px] font-black uppercase bg-zinc-700 text-zinc-300 px-2 py-0.5 rounded">Up Next</span>
+                                            {raceStatus.next && <span className="text-[10px] font-bold text-zinc-500">{raceStatus.next.day} @ {raceStatus.next.time}</span>}
+                                        </div>
+                                        <h4 className="text-3xl font-black italic uppercase tracking-tighter mt-1 truncate opacity-80">
+                                            {raceStatus.next ? raceStatus.next.title : 'Conclusion of Weekend'}
+                                        </h4>
                                     </div>
                                 </div>
 
@@ -290,15 +322,18 @@
                                     className="flex-1 overflow-y-auto custom-scrollbar no-scrollbar pr-2 pb-10 scroll-smooth"
                                 >
                                     <div className="grid grid-cols-1 gap-3">
-                                        {drivers.length > 0 ? (
+                                        {appSettings.activeView === 'timetable' ? (
+                                            <TimetableLayout timetable={filteredTimetable} raceStatus={raceStatus} />
+                                        ) : appSettings.activeView === 'roles' ? (
+                                            <TeamRolesLayout drivers={drivers} />
+                                        ) : drivers.length > 0 ? (
                                             appSettings.activeView === 'drivers' ? 
                                                 sortedDrivers.map((d, i) => <StandingsRow key={d.id} rank={i+1} name={d.name} sub={TEAM_THEMES[d.teamId]?.name} points={d.points} color={TEAM_THEMES[d.teamId]?.color} delay={i * 0.05} />)
                                                 : 
-                                                teamStandings.map((t, i) => <StandingsRow key={t.id} rank={i+1} name={t.name} sub="Formula 1 World Championship" points={t.points} color={t.color} delay={i * 0.05} isTeamView={true} />)
+                                                teamStandings.map((t, i) => <StandingsRow key={t.id} rank={i+1} name={t.name} sub="World Championship" points={t.points} color={t.color} delay={i * 0.05} isTeamView={true} />)
                                         ) : (
-                                            <div className="flex flex-col items-center justify-center h-96 border-2 border-dashed border-zinc-900 rounded-3xl opacity-30">
-                                                <Icons.FileSpreadsheet size={48} className="mb-4" />
-                                                <p className="text-xl font-black italic uppercase tracking-widest text-center">Sync spreadsheet to load</p>
+                                            <div className="flex flex-col items-center justify-center h-96 opacity-30">
+                                                <p className="text-xl font-black italic uppercase tracking-widest text-center">Telemetry Offline</p>
                                             </div>
                                         )}
                                     </div>
@@ -308,78 +343,109 @@
 
                         {mode === 'admin' && (
                             <div className="absolute inset-0 z-50 flex items-center justify-center p-8 bg-black/60 backdrop-blur-md animate-in zoom-in-95 duration-300">
-                                <div className="bg-zinc-900 w-full max-w-2xl rounded-[2rem] border border-white/20 shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden p-10 space-y-6">
-                                    <h2 className="text-3xl font-black italic uppercase text-red-500">Race Control</h2>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Spreadsheet Master Link</label>
-                                        <div className="flex gap-4">
-                                            <input 
-                                                value={appSettings.sheetId} 
-                                                onChange={e => setAppSettings({...appSettings, sheetId: e.target.value})}
-                                                className="flex-1 bg-black border-2 border-white/10 rounded-xl px-4 py-2 text-md font-bold focus:border-red-600 outline-none transition-all text-white"
-                                                placeholder="Paste Link"
-                                            />
-                                            <button onClick={fetchSheetData} className="bg-white text-black px-6 rounded-xl font-black uppercase hover:bg-zinc-200 transition-colors">Sync</button>
+                                <div className="bg-zinc-900 w-full max-w-2xl rounded-[2rem] border border-white/20 shadow-2xl p-10 space-y-6">
+                                    <h2 className="text-3xl font-black italic uppercase text-red-500">Broadcaster Admin</h2>
+                                    <div className="space-y-4">
+                                        <input value={appSettings.sheetId} onChange={e => setAppSettings({...appSettings, sheetId: e.target.value})} className="w-full bg-black border-2 border-white/10 rounded-xl px-4 py-2 text-md font-bold text-white mb-2" placeholder="Leaderboard ID" />
+                                        <input value={appSettings.timetableUrl} onChange={e => setAppSettings({...appSettings, timetableUrl: e.target.value})} className="w-full bg-black border-2 border-white/10 rounded-xl px-4 py-2 text-md font-bold text-white" placeholder="Timetable Pub ID" />
+                                        <button onClick={fetchSheetData} className="w-full bg-white text-black py-3 rounded-xl font-black uppercase hover:bg-zinc-200">Sync All Data</button>
+                                        <div className="p-4 bg-zinc-800 rounded-xl">
+                                            <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest mb-2">Note on Timetable:</p>
+                                            <p className="text-[10px] text-zinc-300 italic">Put a * at the start of event names in the spreadsheet to highlight them (e.g. *Grand Prix).</p>
                                         </div>
-                                        {errorMessage && <p className="text-red-500 font-bold uppercase text-[9px] flex items-center gap-2"><Icons.AlertCircle size={10} /> {errorMessage}</p>}
                                     </div>
-                                    <div className="flex justify-between items-center bg-black/40 p-6 rounded-xl border border-white/5">
-                                        <div>
-                                            <h3 className="font-black uppercase text-md">Auto Cycle</h3>
-                                            <p className="text-[9px] text-zinc-500 uppercase tracking-widest">Flip views every {appSettings.rotationSpeed}s</p>
-                                        </div>
-                                        <input type="checkbox" checked={appSettings.isAutoRotating} onChange={e => setAppSettings({...appSettings, isAutoRotating: e.target.checked})} className="w-8 h-8 accent-red-600 cursor-pointer" />
-                                    </div>
-                                    <button onClick={() => setMode('tv')} className="w-full bg-red-600 py-4 rounded-xl font-black text-lg uppercase italic hover:bg-red-500 transition-colors shadow-xl">Back to Feed</button>
+                                    <button onClick={() => setMode('tv')} className="w-full bg-red-600 py-4 rounded-xl font-black text-lg uppercase italic hover:bg-red-500">Enter Broadcast</button>
                                 </div>
                             </div>
                         )}
                     </main>
 
-                    <footer className="p-2 bg-black border-t border-white/5 flex justify-between px-10 items-center opacity-30">
-                        <div className="flex items-center gap-4">
-                            <span className="text-[8px] font-black text-zinc-600 uppercase tracking-[0.8em]">Broadcaster Engine v8.9 — Minimal Broadcast Mode — {appId}</span>
-                        </div>
+                    <footer className="p-2 bg-black border-t border-white/5 flex justify-between px-10 items-center opacity-30 text-[8px] font-black text-zinc-600 uppercase tracking-[0.8em]">
+                        F1 BLOWOUT v9.5 — PRO MASTER ENGINE
                     </footer>
                 </div>
             );
         }
 
-        function StandingsRow({ rank, name, sub, points, color, delay, isTeamView }) {
-            // Robust first name logic for drivers, full name for constructors
-            const displayName = isTeamView ? name : name.split(' ')[0];
-
+        function TimetableLayout({ timetable, raceStatus }) {
+            const days = ['Saturday', 'Sunday', 'Monday'];
             return (
-                <div 
-                    className="group relative flex items-center bg-zinc-900/50 border border-white/5 py-2 px-8 animate-row opacity-0 overflow-hidden transition-all duration-1000 hover:bg-zinc-800/70 shadow-[0_5px_15px_rgba(0,0,0,0.3)]"
-                    style={{ animationDelay: `${delay}s`, borderLeft: `10px solid ${color}` }}
-                >
-                    <div className="text-3xl md:text-4xl font-black italic text-zinc-800 mr-8 w-16 text-center tabular-nums leading-none transition-all group-hover:text-zinc-600">
-                        {rank}
-                    </div>
-                    <div className="flex-1">
-                        <h3 className="text-2xl md:text-4xl font-black italic uppercase leading-none tracking-tighter transition-all group-hover:translate-x-2 duration-700">
-                            {displayName}
-                        </h3>
-                        <p className="text-zinc-500 font-black tracking-[0.8em] uppercase text-[9px] mt-1 opacity-40 italic transition-all group-hover:opacity-100">
-                            {sub}
-                        </p>
-                    </div>
-                    <div className="text-right flex flex-col items-end">
-                        <div className="text-3xl md:text-5xl font-black italic tabular-nums leading-none tracking-tighter group-hover:text-white transition-all duration-1000">
-                            {points}
-                        </div>
-                        <div className="text-[7px] font-black text-zinc-800 uppercase tracking-[1em] mt-1 pr-2 opacity-60">SEASON TOTAL</div>
-                    </div>
+                <div className="space-y-12 pb-20">
+                    {days.map(day => {
+                        const dayEvents = timetable.filter(e => e.day === day);
+                        if (dayEvents.length === 0) return null;
+                        return (
+                            <div key={day} className="space-y-4 animate-in fade-in duration-1000">
+                                <h3 className="text-xl font-black uppercase italic text-red-600 border-b border-red-900/30 pb-2">{day} Program</h3>
+                                <div className="grid grid-cols-1 gap-2">
+                                    {dayEvents.map((ev, i) => {
+                                        const isLive = raceStatus.current?.title === ev.title && raceStatus.current?.day === ev.day;
+                                        return (
+                                            <div key={i} className={`flex justify-between items-center p-4 rounded-xl border transition-all ${isLive ? 'bg-red-600 text-white border-red-500 shadow-xl' : ev.isImportant ? 'important-glow border-yellow-500/20' : 'bg-zinc-900/40 border-white/5 opacity-60'}`}>
+                                                <div className="flex items-center gap-6">
+                                                    <span className={`text-2xl font-black tabular-nums ${isLive ? 'text-white' : ev.isImportant ? 'text-yellow-500' : 'text-zinc-500'}`}>{ev.time}</span>
+                                                    <span className={`text-2xl font-black uppercase tracking-tighter ${ev.isImportant ? 'text-white scale-105 origin-left' : ''}`}>{ev.title}</span>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    {ev.isImportant && <span className="text-[10px] font-black uppercase bg-yellow-500 text-black px-2 py-0.5 rounded">Major</span>}
+                                                    {isLive && <span className="text-[10px] font-black uppercase bg-white text-red-600 px-2 py-0.5 rounded">Live</span>}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             );
         }
 
-        function LoadingScreen() {
+        function TeamRolesLayout({ drivers }) {
+            const teams = Object.keys(TEAM_THEMES).filter(k => k !== 'default');
             return (
-                <div className="min-h-screen bg-black flex flex-col items-center justify-center p-10">
-                    <div className="w-32 h-32 border-[12px] border-red-600 border-t-transparent rounded-full animate-spin mb-12 shadow-[0_0_80px_rgba(232,0,32,0.4)]"></div>
-                    <h2 className="text-4xl font-black italic uppercase tracking-tighter text-white animate-pulse">Race Control Linking...</h2>
+                <div className="space-y-10 pb-20">
+                    {teams.map(teamId => {
+                        const members = drivers.filter(d => d.teamId === teamId);
+                        if (members.length === 0) return null;
+                        return (
+                            <div key={teamId} className="space-y-4">
+                                <div className="border-b-2 pb-2" style={{ borderColor: TEAM_THEMES[teamId].color }}>
+                                    <h3 className="text-3xl font-black uppercase italic" style={{ color: TEAM_THEMES[teamId].color }}>{TEAM_THEMES[teamId].name} Personnel</h3>
+                                </div>
+                                <div className="grid grid-cols-1 gap-2">
+                                    {members.map((m, i) => (
+                                        <div key={i} className="flex justify-between items-center bg-zinc-900/60 p-4 rounded-xl border border-white/5">
+                                            <div className="flex flex-col">
+                                                <span className="text-2xl font-black uppercase tracking-tighter">{m.name}</span>
+                                                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{m.role}</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-3xl font-black italic tabular-nums">{m.points}</span>
+                                                <span className="text-[8px] font-black text-zinc-700 ml-2 uppercase">PTS</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+        }
+
+        function StandingsRow({ rank, name, sub, points, color, delay, isTeamView }) {
+            return (
+                <div className="group relative flex items-center bg-zinc-900/50 border border-white/5 py-2 px-8 animate-row opacity-0 overflow-hidden transition-all duration-1000 hover:bg-zinc-800/70 shadow-[0_5px_15px_rgba(0,0,0,0.3)]" style={{ animationDelay: `${delay}s`, borderLeft: `10px solid ${color}` }}>
+                    <div className="text-3xl md:text-4xl font-black italic text-zinc-800 mr-8 w-16 text-center tabular-nums leading-none">{rank}</div>
+                    <div className="flex-1">
+                        <h3 className="text-2xl md:text-4xl font-black italic uppercase leading-none tracking-tighter">{name}</h3>
+                        <p className="text-zinc-500 font-black tracking-[0.8em] uppercase text-[9px] mt-1 opacity-40 italic">{sub}</p>
+                    </div>
+                    <div className="text-right flex flex-col items-end">
+                        <div className="text-3xl md:text-5xl font-black italic tabular-nums leading-none group-hover:text-white transition-all duration-1000">{points}</div>
+                        <div className="text-[7px] font-black text-zinc-800 uppercase tracking-[1em] mt-1 pr-2 opacity-60 font-bold">POINTS</div>
+                    </div>
                 </div>
             );
         }
@@ -389,4 +455,3 @@
     </script>
 </body>
 </html>
-
