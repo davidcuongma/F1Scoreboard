@@ -153,7 +153,6 @@
                             else if (rawTeam.includes('mercedes')) teamKey = 'mercedes';
                             else if (rawTeam.includes('mclaren')) teamKey = 'mclaren';
                             
-                            // Sum Column D-G (indexes 3,4,5,6)
                             const racePoints = cleanCols.slice(3, 7).map(val => {
                                 const p = parseInt(val);
                                 return isNaN(p) ? 0 : p;
@@ -176,13 +175,20 @@
                         const csv = await ttResp.text();
                         const rows = csv.split(/\r?\n/).filter(r => r.trim() !== '');
                         const events = [];
-                        const dayMeta = [{ name: 'Saturday', date: 8 }, { name: 'Sunday', date: 9 }, { name: 'Monday', date: 10 }];
+                        // CORRECTED DATES: Saturday 7th, Sunday 8th, Monday 9th 2026
+                        const dayMeta = [{ name: 'Saturday', date: 7 }, { name: 'Sunday', date: 8 }, { name: 'Monday', date: 9 }];
                         rows.slice(1).forEach(row => {
                             const cols = parseCSVRow(row);
                             cols.forEach((cell, dayIdx) => {
                                 if (cell && cell.includes(':')) {
                                     const rawTitle = cell.split(' ').slice(1).join(' ');
-                                    events.push({ day: dayMeta[dayIdx].name, dayDate: dayMeta[dayIdx].date, time: cell.split(' ')[0], title: rawTitle.replace(/^\*/, ''), isImportant: rawTitle.startsWith('*') });
+                                    events.push({ 
+                                        day: dayMeta[dayIdx].name, 
+                                        dayDate: dayMeta[dayIdx].date, 
+                                        time: cell.split(' ')[0], 
+                                        title: rawTitle.replace(/^\*/, ''), 
+                                        isImportant: rawTitle.startsWith('*') 
+                                    });
                                 }
                             });
                         });
@@ -256,14 +262,23 @@
                 const currentMinutes = now.getHours() * 60 + now.getMinutes();
                 const timeToNum = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
                 const allEventsSorted = [...timetable].sort((a, b) => (a.dayDate - b.dayDate) || (timeToNum(a.time) - timeToNum(b.time)));
+                
                 let current = null, next = null;
+
                 for (let i = 0; i < allEventsSorted.length; i++) {
                     const ev = allEventsSorted[i];
                     const evStart = timeToNum(ev.time);
                     const nextEv = allEventsSorted[i + 1];
                     const evEnd = nextEv && nextEv.dayDate === ev.dayDate ? timeToNum(nextEv.time) : evStart + 120;
-                    if (d === ev.dayDate && currentMinutes >= evStart && currentMinutes < evEnd) { current = ev; next = nextEv || null; break; }
-                    else if ((ev.dayDate > d) || (d === ev.dayDate && evStart > currentMinutes)) { next = ev; break; }
+
+                    if (d === ev.dayDate && currentMinutes >= evStart && currentMinutes < evEnd) {
+                        current = ev;
+                        next = nextEv || null;
+                        break;
+                    } else if ((ev.dayDate > d) || (d === ev.dayDate && evStart > currentMinutes)) {
+                        next = ev;
+                        break;
+                    }
                 }
                 return { current, next, allEventsSorted };
             }, [timetable]);
@@ -300,17 +315,22 @@
                     <main className="flex-1 relative overflow-hidden z-10 flex flex-col h-full">
                         <div className={`flex-1 transition-all duration-700 p-3 md:p-6 flex flex-col h-full overflow-hidden ${mode === 'admin' ? 'opacity-5 blur-[40px] scale-95 pointer-events-none' : 'opacity-100'}`}>
                             <div className="max-w-[2400px] mx-auto w-full flex flex-col h-full">
+                                
                                 <div className="flex flex-col md:grid md:grid-cols-2 gap-2 md:gap-4 mb-4 md:mb-6">
-                                    <div className={`p-3 md:p-4 rounded-xl border-l-[6px] md:border-l-8 transition-all ${raceStatus.current ? 'bg-red-600/20 border-red-600 animate-pulse' : 'bg-zinc-900/40 border-zinc-800 opacity-40'}`}>
+                                    <div className={`p-3 md:p-4 rounded-xl border-l-[6px] md:border-l-8 transition-all ${raceStatus.current ? 'bg-red-600/20 border-red-600 animate-pulse shadow-[0_0_30px_rgba(232,0,32,0.1)]' : 'bg-zinc-900/40 border-zinc-800 opacity-40'}`}>
                                         <span className={`text-[8px] md:text-[10px] font-black uppercase px-2 py-0.5 rounded ${raceStatus.current ? 'bg-red-600 text-white' : 'bg-zinc-700 text-zinc-400'}`}>{raceStatus.current ? 'Live Now' : 'Standby'}</span>
-                                        <h4 className="text-xl md:text-3xl font-black italic uppercase tracking-tighter mt-1 truncate">{raceStatus.current ? raceStatus.current.title : 'Standby'}</h4>
+                                        <h4 className="text-xl md:text-3xl font-black italic uppercase tracking-tighter mt-1 truncate">
+                                            {raceStatus.current ? raceStatus.current.title : 'Standby'}
+                                        </h4>
                                     </div>
                                     <div className="p-3 md:p-4 rounded-xl bg-zinc-900/60 border-l-[6px] md:border-l-8 border-zinc-500">
                                         <div className="flex items-center gap-2 md:gap-3">
                                             <span className="text-[8px] md:text-[10px] font-black uppercase bg-zinc-700 text-zinc-300 px-2 py-0.5 rounded">Up Next</span>
                                             {raceStatus.next && <span className="text-[8px] md:text-[10px] font-bold text-zinc-500">{raceStatus.next.day} @ {raceStatus.next.time}</span>}
                                         </div>
-                                        <h4 className="text-xl md:text-3xl font-black italic uppercase tracking-tighter mt-1 truncate opacity-80">{raceStatus.next ? raceStatus.next.title : 'Finish'}</h4>
+                                        <h4 className="text-xl md:text-3xl font-black italic uppercase tracking-tighter mt-1 truncate opacity-80">
+                                            {raceStatus.next ? raceStatus.next.title : 'Finish'}
+                                        </h4>
                                     </div>
                                 </div>
 
@@ -354,7 +374,7 @@
                     </main>
 
                     <footer className="p-2 bg-black border-t border-white/5 flex justify-between px-6 md:px-10 items-center opacity-30 text-[7px] md:text-[8px] font-black text-zinc-600 uppercase tracking-[0.5em] md:tracking-[0.8em]">
-                        F1 BLOWOUT v10.3 — PARSER FIXED — PRO ENGINE
+                        F1 BLOWOUT v10.4 — SYNC FIXED — PRO ENGINE
                     </footer>
                 </div>
             );
@@ -368,32 +388,30 @@
                         <div className="space-y-1 text-[10px]">
                             <p className="font-bold text-zinc-400 uppercase">Address: <span className="text-white">30 Acheron Avenue, Tootgarook</span></p>
                             <p className="font-bold text-zinc-400 uppercase">Key Safe: <span className="text-white text-lg">6290</span></p>
-                            <p className="font-bold text-zinc-400 text-[8px] opacity-60">LOCATED AT PILLAR RIGHT OF FRONT DOOR</p>
-                            <p className="font-bold text-zinc-400 uppercase">Times: <span className="text-red-500">IN 4PM</span> / <span className="text-zinc-500">OUT 10AM</span></p>
+                            <p className="font-bold text-zinc-400 text-[8px] opacity-60 uppercase">Pillar right of front door</p>
+                            <p className="font-bold text-zinc-400 uppercase text-[8px]">In <span className="text-red-500">4PM</span> / Out <span className="text-zinc-500">10AM</span></p>
                         </div>
                     </div>
                     <div className="bg-zinc-900/60 p-4 rounded-2xl border border-white/5 space-y-3">
-                        <div className="flex items-center gap-3 border-b border-white/10 pb-2"><Icons.Wifi className="text-blue-500" size={16}/><h3 className="text-sm font-black uppercase italic">Connectivity</h3></div>
+                        <div className="flex items-center gap-3 border-b border-white/10 pb-2"><Icons.Wifi className="text-blue-500" size={16}/><h3 className="text-sm font-black uppercase italic">Network</h3></div>
                         <div className="space-y-1 text-[10px]">
                             <p className="font-bold text-zinc-400 uppercase">SSID: <span className="text-white">TelstraEE8347</span></p>
-                            <p className="font-bold text-zinc-400 uppercase">Pass: <span className="text-white italic">z952uhjygu</span></p>
+                            <p className="font-bold text-zinc-400 uppercase">Pass: <span className="text-white italic select-all">z952uhjygu</span></p>
                         </div>
                     </div>
                     <div className="bg-zinc-900/60 p-4 rounded-2xl border border-white/5 space-y-3">
-                        <div className="flex items-center gap-3 border-b border-white/10 pb-2"><Icons.AlertCircle className="text-yellow-500" size={16}/><h3 className="text-sm font-black uppercase italic">House Rules</h3></div>
+                        <div className="flex items-center gap-3 border-b border-white/10 pb-2"><Icons.AlertCircle className="text-yellow-500" size={16}/><h3 className="text-sm font-black uppercase italic">Rules</h3></div>
                         <ul className="text-[9px] font-bold text-zinc-400 space-y-1 uppercase">
                             <li>• NO Noise/Deck 11PM-7AM</li>
                             <li>• NO Parties (Council Law)</li>
                             <li>• Park on Premises ONLY</li>
-                            <li>• $500 Council Fine per breach</li>
                         </ul>
                     </div>
                     <div className="bg-zinc-900/60 p-4 rounded-2xl border border-white/5 space-y-3">
-                        <div className="flex items-center gap-3 border-b border-white/10 pb-2"><Icons.Trash className="text-green-500" size={16}/><h3 className="text-sm font-black uppercase italic">Equipment</h3></div>
+                        <div className="flex items-center gap-3 border-b border-white/10 pb-2"><Icons.Trash className="text-green-500" size={16}/><h3 className="text-sm font-black uppercase italic">Bins</h3></div>
                         <div className="space-y-1 text-[9px]">
-                            <p className="font-bold text-zinc-400 uppercase">Coffee: <span className="text-white italic">Aldi Pods Machine</span></p>
-                            <p className="font-bold text-zinc-400 uppercase">Bins: <span className="text-white italic">Tuesday Morning Collection</span></p>
-                            <p className="font-bold text-zinc-400 uppercase">Fireplace: <span className="text-white italic">Hold Top + Red Remote</span></p>
+                            <p className="font-bold text-zinc-400 uppercase">Tuesday Morning Pickup</p>
+                            <p className="font-bold text-zinc-400 uppercase text-[8px]">Place on curb Sunday Night</p>
                         </div>
                     </div>
                 </div>
@@ -456,7 +474,10 @@
 
         function StandingsRow({ rank, name, sub, points, color, delay, isTeamView }) {
             return (
-                <div className="group relative flex items-center bg-zinc-900/50 border border-white/5 py-2 px-4 md:px-8 animate-row opacity-0 overflow-hidden transition-all hover:bg-zinc-800/70" style={{ animationDelay: `${delay}s`, borderLeft: `8px solid ${color}` }}>
+                <div 
+                    className="group relative flex items-center bg-zinc-900/50 border border-white/5 py-2 px-4 md:px-8 animate-row opacity-0 overflow-hidden transition-all hover:bg-zinc-800/70" 
+                    style={{ animationDelay: `${delay}s`, borderLeft: `8px solid ${color}` }}
+                >
                     <div className="text-2xl md:text-4xl font-black italic text-zinc-800 mr-4 md:mr-8 w-10 md:w-16 text-center tabular-nums leading-none shrink-0">{rank}</div>
                     <div className="flex-1 min-w-0"><h3 className="text-xl md:text-4xl font-black italic uppercase leading-none tracking-tighter truncate mobile-title-fix">{name}</h3><p className="text-zinc-500 font-black tracking-[0.4em] md:tracking-[0.8em] uppercase text-[7px] md:text-[9px] mt-1 opacity-40 italic truncate">{sub}</p></div>
                     <div className="text-right flex flex-col items-end shrink-0"><div className="text-3xl md:text-5xl font-black italic tabular-nums leading-none group-hover:text-white transition-all mobile-points-fix">{points}</div><div className="text-[6px] md:text-[7px] font-black text-zinc-800 uppercase tracking-[0.5em] md:tracking-[1em] mt-1 pr-1 md:pr-2 opacity-60 font-bold uppercase">POINTS</div></div>
